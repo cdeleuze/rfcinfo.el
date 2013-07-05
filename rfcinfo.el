@@ -3,7 +3,8 @@
 
 ;; Copyright (C) 2005-2013 Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
-;; Version: 0.53 / Jun 2013
+;; Version: 0.54 / Jun 2013
+;; --Version: 0.53 / Jun 2013
 ;; --Version: 0.52 / Mar 2013
 ;; --Version: 0.51 / Jan 2013
 ;; --Version: 0.5 / Nov 2012
@@ -120,18 +121,18 @@
 The name is an ange-ftp directory.  You may have to set/customize
 ange-ftp-try-passive-mode.")
 
-(defvar rfcinfo-cache-dir "~/RFC/Cache/" "RFC local cache directory.
+(defvar rfcinfo-cache-dir "~/.cache/rfc/" "RFC local cache directory.
 This is where downloaded RFCs will be stored for later offline
 access, if `rfcinfo-cache-flag' is non nil.")
 
 (defvar rfcinfo-cache-flag t
   "If non nil, store a copy of each downloaded RFC in `rfcinfo-cache-dir'.")
 
-(defvar rfcinfo-index-xml-file "~/rfc-index.xml"
+(defvar rfcinfo-index-xml-file "~/.cache/rfc/rfc-index.xml"
 ;(defvar rfcinfo-index-xml-file "/home/deleuzec/rfc-index.xml"
   "The local (path)name of the rfc-index.xml file")
 
-(defvar rfcinfo-dbfile "~/.rfcinfo.db"
+(defvar rfcinfo-dbfile "~/.cache/rfc/rfcinfo.db"
   "Pathname of the file where rfc information will be stored")
 
 (defvar rfcinfo-errata-url-prefix
@@ -305,15 +306,15 @@ Ignore section par if NBONLY is non-nil."
       nil)))
 
 (defun rfcinfo-read-ref (nbonly msg ask &optional non-local)
-  (let ((def   (or (rfcinfo-ref-at-point)
-		   (and (not non-local) (rfcinfo-buffer-holds-one)))))
+  (let ((def (or (rfcinfo-ref-at-point)
+		 (and (not non-local) (rfcinfo-buffer-holds-one)))))
     (if (or ask (not def))
 	(let ((sdef (rfcinfo-string-of-ref def nbonly)))
 	  (rfcinfo-ref-of-string (read-string
-			      (if (null def) (concat msg "RFC number: ")
-				(concat msg "RFC number (default "
-					sdef "): "))
-			      nil nil sdef)))
+				  (if (null def) (concat msg "RFC number: ")
+				    (concat msg "RFC number (default "
+					    sdef "): "))
+				  nil nil sdef)))
       def)))
 
 (defun rfcinfo-read-sec (ask)
@@ -456,6 +457,7 @@ Ignore section par if NBONLY is non-nil."
     (define-key map [mouse-2] 'rfcinfo-click)
     (define-key map "e"      'rfcinfo-errata)
     (define-key map "b"      'rfcinfo-bortzmeyer)
+    (define-key map "s"      'rfcinfo-search-title)
     (define-key map "?"      'describe-mode)
     map)
   "Keymap for `rfcinfo-mode'.
@@ -593,6 +595,65 @@ orange=experimental, purple=historic.
 	(rfcinfo-errata)
       (rfcinfo-status))))
 
+;;; Searching the DB
+
+(defun rfcinfo-search-any (field word)
+  (loop for i from 0 to (1- (length rfcinfo-status))
+	if (let ((fi (assq field (aref rfcinfo-status i))))
+	     (and fi (string-match word (cadr fi))))
+	collect i))
+
+;; case-fold-search
+
+(defun rfcinfo-search-title-get (word)
+  (with-temp-buffer
+    (insert
+     (let ((l (rfcinfo-search-any 'title word)))
+       (format "Search results for \"%s\" in title (%i entries)\n%s" word (length l) (deps l ""))))
+    (rfcinfo-set-properties)
+    (buffer-substring (point-min) (point-max))))
+    
+(defun rfcinfo-search-title (word)
+  ""
+  (interactive "MSearch titles for word: ")
+  (get-buffer-create rfcinfo-buffer)
+  (let ((st (rfcinfo-search-title-get word)))
+    (if (window-live-p rfcinfo-window) ()
+      (setq rfcinfo-window (split-window-vertically)))
+    (select-window rfcinfo-window)
+    (set-buffer rfcinfo-buffer)
+    (if rfcinfo-first-done (buffer-enable-undo)
+      (buffer-disable-undo)
+      (setq rfcinfo-first-done t))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert st)
+      (goto-char (point-min))
+      (forward-word))
+    (rfcinfo-mode)
+    (set-window-buffer rfcinfo-window rfcinfo-buffer)
+    (fit-window-to-buffer)))
+
+(defun rfcinfo-search-show (word)
+  ""
+  (interactive "MSearch titles for word: ")
+  (get-buffer-create rfcinfo-buffer)
+  (let ((st (rfcinfo-search-title word)))
+    (if (window-live-p rfcinfo-window) ()
+      (setq rfcinfo-window (split-window-vertically)))
+    (select-window rfcinfo-window)
+    (set-buffer rfcinfo-buffer)
+    (if rfcinfo-first-done (buffer-enable-undo)
+      (buffer-disable-undo)
+      (setq rfcinfo-first-done t))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert st)
+      (goto-char (point-min))
+      (forward-word))
+    (rfcinfo-mode)
+    (set-window-buffer rfcinfo-window rfcinfo-buffer)
+    (fit-window-to-buffer)))
 
 ;;; Importing, loading, and saving
 
@@ -898,6 +959,9 @@ saved to kill ring."
 ;; 3. 
 
 ;; TODO
+
+;; search selected if non number in C-c r?
+
 ;; display new RFCs when refreshing?
 
 ;;; TODO current problems

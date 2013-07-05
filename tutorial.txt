@@ -25,7 +25,9 @@ RFC, la flèche droite de 'suivre' le RFC sur lequel est le curseur, la
 gauche de revenir à l'état précédent. 'q' permet de fermer la fenêtre.
 
 C-c r ne demande pas de numéro si le curseur est présent sur un numéro
-de rfc, comme rfc1034, 1035 (essayer ici !)
+de rfc, comme rfc1034, 1035 (essayer ici !), sauf si un argument
+préfixe est utilisé (C-u C-c r) auquel cas le numéro est proposé comme
+choix par défaut.
 
 La deuxième fonctionalité est rfcinfo-open, accessible par C-c R.  On
 entre le numéro de RFC, il est téléchargé et une copie est gardée dans
@@ -39,8 +41,8 @@ http://www.loveshack.ukfsn.org/emacs/rfcview.el
 
 rfcinfo-open peut aussi ouvrir le RFC à un emplacement déterminé, ce
 qui est très pratique pour garder une référence sur un point précis
-dans une doc.  Par exemple (essayer C-c R sur les références aux RFC,
-puis 'q' pour quitter) :
+dans une doc.  Par exemple (essayer C-c R sur les références aux RFC
+ci-dessous, puis 'q' pour quitter) :
 
 ---
 rfc2181-5    RR has label, class, type and data. [+ defining RRSet]
