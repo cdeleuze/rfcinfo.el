@@ -1,0 +1,129 @@
+* priority
+a word about erratas
+make ref (doc/integration)
+
+* using rfcinfo out of emacs
+emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> -f rfcinfo-show
+emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> --eval "(rfcinfo-do-show 1034 nil)"
+
+emacs -q --no-site-file -T rfcinfo -nbc -l Src/rfcinfo/rfcinfo.el --eval "(progn (tool-bar-mode 0) (rfcinfo-search-title \"PPP\"))"
+
+don't split window in this case?
+
+
+pb: caddr not defined!
+    loop
+=> require 'cl
+
+* create cachedir if does not exist
+* additional features
+
+update '+' (local availability status) when downloaded
+
+search in abstract
+
+show abstract
+    -> what exactly does abstract element contain in xml index?
+       document abstract if one exists + [STANDARDS-TRACK] if applicable
+no abstract: rfc1034 ...
+
+xml also has keywords...
+
+generate map (viz) and display it in browser
+display map in emacs?
+possible control back from browser to emacs?
+ -> click on rfc on map -> display info in emacs...
+
+diff status (when open)/summary?
+sb-rfcview.el ?
+provide a menu ?
+also use w3m to download?
+unfold/fold updby/obsoby trees
+?n show next rfc...
+SPC/DEL for scroll forward/backward ?
+debian package doc-rfc (see rfcview)
+user annotations (related rfcs, free text...)
+  alist, integrated in vector during import (or when load-ing?)
+set-window-dedicated-p ?
+customize faces
+cache dir should be shared ?
+look at ffap ?
+faces for tty
+
+build sec with +l from point
+  -> based on rfcview headings
+
+how to handle rfcview optional dependency?
+ -> build-ref only (easily) callable from rfcview-mode
+
+
+refs and secs, use rfcview header detection
+;;
+1. correct them to not miss any (nor catch other things)
+2. allow absence of final dot
+3. 
+
+search selected if non number in C-c r?
+
+display new RFCs when refreshing?
+
+* current problems
+
+function deps
+
+sets mark two times while loading?
+
+download part should go in rfcview?
+
+clean up xml import code
++l in ref counts visible lines in rfcview mode...
+
+errata for unknown, browser displays whole list of errata
+
+errata should read from minibuffer if not found at point
+       should use current rfc from rfcview! (or use I, e ?)
+  if no arg && rfcinfo-mode, use this one
+  if arg && rfcinfo-mode, ask
+  if no arg && no rfcinfo-mode, use point, ask if none
+  if arg && no rfcinfo-mode, use point, ask with default
+
+rfc1035-5 currently fails (item number 5 found)
+same rfc2205-1
+  -> probably only applies to level 1 headings
+
+scroll useless (except if window too small)
+
+3-lines status: show numbers of obsolating/updating rfcs?
+
+feature: lookup also by bcp xx, std xx 
+
+* rfcview problems
+
+rfcview in debian emacs-goodies-el (but 0.12 instead of 0.13)
+
+bug rfc1035-3.4.2, 25 (SMTP) (section 3.4.2, taken as heading)
+ -> check final dot?
+ -> check previous empty line?
+
+misses headings not a column 0 (eg rfc2205)
+ -> allow blanks for headings at level 2 and more?
+
+misses toc in rfc2206 (no end dot in toc entries)
+
+headings menu poorly cut when large
+(do it by sections/subsections?)
+
+does not detect multiple references (2205 -> [RSVP93, RFC 1633])
+rfcview-use-view-mode-p -flag?
+
+in speedbar, sections are in reverse order? (rfc1035-3)
+  speedbar does its own heading parsing?
+  or uses imenu???
+
+see shrink-window-if-larger-than-buffer?
+
+init code rfcinfo-load should rather be an autoload or something like that?
+
+* rfcview toadds
+
+next/previous heading

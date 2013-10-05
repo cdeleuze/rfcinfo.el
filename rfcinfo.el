@@ -1,9 +1,11 @@
 ;;; rfcinfo.el --- Displaying and browsing status information about RFCs
 ;;;                Downloading and jumping to RFC locations
+;;;                requires 'cl
 
 ;; Copyright (C) 2005-2013 Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
-;; Version: 0.54 / Jun 2013
+;; Version: 0.55 / Oct 2013
+;; --Version: 0.54 / Jun 2013
 ;; --Version: 0.53 / Jun 2013
 ;; --Version: 0.52 / Mar 2013
 ;; --Version: 0.51 / Jan 2013
@@ -12,7 +14,7 @@
 ;; --Version: 0.33 / 12 Mar 2012
 ;; --Version: 0.31 / xx Aug 2011
 
-;; Last version available at http://christophe.deleuze.free.fr/ZZZ github
+;; Last version available at https://github.com/cdeleuze/rfcinfo.el.git
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -109,6 +111,7 @@
 ;;; -----
 
 ;;; Code:
+(require 'cl)
 
 ;; Download/View
 ;; TODO? http://www.ietf.org/rfc/rfcxxxx.txt ftp://ftp.ripe.net/rfc/rfcxxxx.txt
@@ -145,16 +148,19 @@ access, if `rfcinfo-cache-flag' is non nil.")
 (defvar rfcinfo-window nil);;ZZZ
 (defconst rfcinfo-buffer "*RFC info*")
 
+(defvar rfcinfo-first-done) ;; -flag ?
+(defvar rfcinfo-scroll-up)
+
 ;;; A few general purpose functions
 
 (defun rfcinfo-foldl (f e l)
   "Constant space fold-left"
-  (setq rest l
-	acc e)
-  (while (consp rest)
-    (setq acc (apply f acc (car rest) nil)
-	  rest (cdr rest)))
-  acc)
+  (let ((rest l)
+	(acc e))
+    (while (consp rest)
+      (setq acc (apply f acc (car rest) nil)
+	    rest (cdr rest)))
+    acc))
 
 (defun rfcinfo-foldl1 (f l)
   "Constant space fold-left1"
@@ -384,7 +390,9 @@ Ignore section par if NBONLY is non-nil."
 		  (obs-by  (cdr  (assoc 'obsoleted-by rfc)))
 		  (errata  (assoc 'errata rfc)))
 	      
-	      (insert (format "%d -- %s\n%S  %S %i %s\n%s\n%s%s%s%s" nb title status 
+	      (insert (format "%d -%c %s\n%S  %S %i %s\n%s\n%s%s%s%s" nb 
+			      (if (rfcinfo-cached-p nb) ?+ ?-)
+			      title status 
 			      (car date) (cadr date)
 			      (if errata
 				  (concat (propertize "Errata"
@@ -429,6 +437,11 @@ Ignore section par if NBONLY is non-nil."
   (if (null regexp) nil
     (rfcinfo-do-goto regexp lines sec)))
 
+(defun rfcinfo-cached-p (nb)
+  "Does a local cached copy exists?"
+  (file-exists-p (concat rfcinfo-cache-dir "rfc" (number-to-string nb) ".txt")))
+
+
 ;;; TODO undocumented user functions
 
 (defun rfcinfo-bortzmeyer ()
@@ -443,7 +456,7 @@ Ignore section par if NBONLY is non-nil."
 
 (put 'rfcinfo-mode 'mode-class 'special)
 
-(defconst rfcinfo-mode-map
+(defvar rfcinfo-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [down]   'rfcinfo-next)
     (define-key map [up]     'rfcinfo-prev)
@@ -592,8 +605,8 @@ orange=experimental, purple=historic.
   (let ((pos (posn-point (event-end event))))
     (goto-char pos)
     (if (string= (thing-at-point 'word) "Errata")
-	(rfcinfo-errata)
-      (rfcinfo-status))))
+	(rfcinfo-errata nil)
+      (rfcinfo-status nil))))
 
 ;;; Searching the DB
 
@@ -779,7 +792,7 @@ orange=experimental, purple=historic.
 File is downloaded from `rfcinfo-remote-repository'."
   (interactive)
   (with-temp-buffer
-    (insert-file (concat rfcinfo-remote-repository "rfc-index.xml"))
+    (insert-file-contents (concat rfcinfo-remote-repository "rfc-index.xml"))
     (write-file rfcinfo-index-xml-file))
   (rfcinfo-import))
 
@@ -787,7 +800,7 @@ File is downloaded from `rfcinfo-remote-repository'."
   (interactive)
   (condition-case nil
       (with-temp-buffer
-	(insert-file rfcinfo-dbfile)
+	(insert-file-contents rfcinfo-dbfile)
 	(setq rfcinfo-status (read (current-buffer))))
     (error (error "Can't load from `rfcinfo-dbfile'"))))
 
@@ -825,87 +838,6 @@ File is downloaded from `rfcinfo-remote-repository'."
 
 ;;; rfcinfo.el ends here
 
-
-
-;;; Description of rfc-info.xml schema
-
-;; top level elements: bcp-entry, fyi-entry, rfc-entry, std-entry, rfc-not-issued-entry
-
-;; see xml-parse-region from xml.el
-;;  lots of white space strings?
-
-;; (car toto)
-;; (elt e 1 3 5 ....) each are tags (tag attr content)
-;;       with attr=nil
-;;       content is whitespace strings and tags...
-;; 
-;; search for top-level tags
-;; * doc-id
-;; * title
-;; * author + (subtag name)
-;; * date   (subtags month year)
-;;   format       (file-format char-count page-count)
-;;   keywords
-;;   abstract      (p)
-;; * obsoletes     (subtag doc-id+)
-;; * updates       " "
-;; * obsoleted-by  " "
-;; * updated-by    " "
-;;   draft
-;;   is-also
-;; * current-status
-;;   publication-status
-;;   stream             Legacy, IETF ... ?
-;;   area
-;;   wg_acronym
-;;   errata-url   (present only if actual errata exist?)
-
-;; xml file has bug for 'Editors'
-
-
-;;; TODO additional features
-
-;; put on github
-
-;; search on title (search.el)
-
-;; search in abstract
-
-;; show abstract
-;;     -> what exactly does abstract element contain in xml index?
-;;        document abstract if one exists + [STANDARDS-TRACK] if applicable
-;; no abstract: rfc1034 ...
-
-;; xml also has keywords...
-
-;; generate map (viz) and display it in browser
-;; display map in emacs?
-;; possible control back from browser to emacs?
-;;  -> click on rfc on map -> display info in emacs...
-
-;; show local availability status
-;; diff status (when open)/summary?
-;; sb-rfcview.el ?
-;; provide a menu ?
-;; also use w3m to download?
-;; unfold/fold updby/obsoby trees
-;; ?n show next rfc...
-;; SPC/DEL for scroll forward/backward ?
-;; debian package doc-rfc (see rfcview)
-;; user annotations (related rfcs, free text...)
-;;   alist, integrated in vector during import (or when load-ing?)
-;; set-window-dedicated-p ?
-;; customize faces
-;; cache dir should be shared ?
-;; look at ffap ?
-;; faces for tty
-
-;; build sec with +l from point
-;;   -> based on rfcview headings
-
-;; how to handle rfcview optional dependency?
-;;  -> build-ref only (easily) callable from rfcview-mode
-
 (defun rfcinfo-drop-final-dot (s)
   (if (eq (aref s (1- (length s))) ?.)
       (substring s 0 (1- (length s)))
@@ -917,7 +849,8 @@ Uses rfcview-local-heading-alist.  ref is displayed and
 saved to kill ring."
   (interactive)
   (let ((rfc (car-safe (rfcinfo-buffer-holds-one)))
-	(res nil))
+	(res) 
+	(headers))
     (if (null rfc) (error "Not an rfc here!")
       (setq headers (reverse rfcview-local-heading-alist))
       (while headers
@@ -937,7 +870,8 @@ saved to kill ring."
   "same as rfcinfo-do-goto, using rfcview-local-heading-alist"
   (interactive)
   (let ((sec (cadddr ref))
-	(res nil))
+	(res)
+	(headers))
     (setq headers rfcview-local-heading-alist)
     (while headers
       (let ((thissec (caar headers)))
@@ -951,76 +885,3 @@ saved to kill ring."
     (if res
 	(goto-char res)
       (error "Unfound section %s" sec))))
-
-;; refs and secs, use rfcview header detection
-;;
-;; 1. correct them to not miss any (nor catch other things)
-;; 2. allow absence of final dot
-;; 3. 
-
-;; TODO
-
-;; search selected if non number in C-c r?
-
-;; display new RFCs when refreshing?
-
-;;; TODO current problems
-
-;; function deps
-
-;; sets mark two times while loading?
-
-;; download part should go in rfcview?
-
-;; clean up xml import code
-;; +l in ref counts visible lines in rfcview mode...
-
-;; errata for unknown, browser displays whole list of errata
-
-;; errata should read from minibuffer if not found at point
-;;        should use current rfc from rfcview! (or use I, e ?)
-;;   if no arg && rfcinfo-mode, use this one
-;;   if arg && rfcinfo-mode, ask
-;;   if no arg && no rfcinfo-mode, use point, ask if none
-;;   if arg && no rfcinfo-mode, use point, ask with default
-
-;; rfc1035-5 currently fails (item number 5 found)
-;; same rfc2205-1
-;;   -> probably only applies to level 1 headings
-
-;; scroll useless (except if window too small)
-
-;; 3-lines status: show numbers of obsolating/updating rfcs?
-
-;; feature: lookup also by bcp xx, std xx 
-
-;;; rfcview problems
-
-;; rfcview in debian emacs-goodies-el (but 0.12 instead of 0.13)
-
-;; bug rfc1035-3.4.2, 25 (SMTP) (section 3.4.2, taken as heading)
-;;  -> check final dot?
-;;  -> check previous empty line?
-
-;; misses headings not a column 0 (eg rfc2205)
-;;  -> allow blanks for headings at level 2 and more?
-
-;; misses toc in rfc2206 (no end dot in toc entries)
-
-;; headings menu poorly cut when large
-;; (do it by sections/subsections?)
-
-;; does not detect multiple references (2205 -> [RSVP93, RFC 1633])
-;; rfcview-use-view-mode-p -flag?
-
-;; in speedbar, sections are in reverse order? (rfc1035-3)
-;;   speedbar does its own heading parsing?
-;;   or uses imenu???
-
-;; see shrink-window-if-larger-than-buffer?
-
-;; init code rfcinfo-load should rather be an autoload or something like that?
-
-;;; rfcview toadds
-
-;; next/previous heading
