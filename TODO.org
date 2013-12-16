@@ -1,4 +1,6 @@
+
 * priority
+
 a word about erratas
 make ref (doc/integration)
 
@@ -15,19 +17,29 @@ pb: caddr not defined!
     loop
 => require 'cl
 
-* create cachedir if does not exist
+* convenience
+** propose to refresh if apparently run for the first time
+** create cachedir if does not exist
+  tested by rfcinfo-refresh only?
+  + also there xml and db files ?
+    redefine variables ?
+
+** customization for faces
 * additional features
+** search author
+** search in abstract
 
-update '+' (local availability status) when downloaded
-
-search in abstract
-
-show abstract
+** show abstract
     -> what exactly does abstract element contain in xml index?
        document abstract if one exists + [STANDARDS-TRACK] if applicable
-no abstract: rfc1034 ...
+no abstract: rfc1034 ...xml file provides one...
 
-xml also has keywords...
+** show keywords
+xml file has some
+
+** search keywords
+
+** others
 
 generate map (viz) and display it in browser
 display map in emacs?
@@ -69,6 +81,8 @@ display new RFCs when refreshing?
 
 * current problems
 
+does not update '+' (local availability status) when downloaded
+
 function deps
 
 sets mark two times while loading?
@@ -77,6 +91,7 @@ download part should go in rfcview?
 
 clean up xml import code
 +l in ref counts visible lines in rfcview mode...
+=> no?
 
 errata for unknown, browser displays whole list of errata
 
@@ -95,7 +110,73 @@ scroll useless (except if window too small)
 
 3-lines status: show numbers of obsolating/updating rfcs?
 
-feature: lookup also by bcp xx, std xx 
+* BCP, FIY, STD-lookup
+
+all have entries in XML file
+(but sometimes empty)
+
+    <bcp-entry>
+        <doc-id>BCP0013</doc-id>
+        <is-also>
+            <doc-id>RFC4289</doc-id>
+            <doc-id>RFC6838</doc-id>
+        </is-also>
+    </bcp-entry>
+
+    <fyi-entry>
+        <doc-id>FYI0002</doc-id>
+        <is-also>
+            <doc-id>RFC1470</doc-id>
+        </is-also>
+    </fyi-entry>
+
+    <std-entry>
+        <doc-id>STD0003</doc-id>
+        <title>Requirements for Internet Hosts</title>
+        <is-also>
+            <doc-id>RFC1122</doc-id>
+            <doc-id>RFC1123</doc-id>
+        </is-also>
+    </std-entry>
+
+they can be mapped to several RFCs...
+
+all are also referenced from the <rfc-entry>
+
+    <rfc-entry>
+        <doc-id>RFC0821</doc-id>
+        <title>Simple Mail Transfer Protocol</title>
+	...
+        <is-also>
+            <doc-id>STD0010</doc-id>
+        </is-also>
+	...
+    </rfc-entry>
+
+an rfc can is-also at most one (std or fiy or bcp)
+an std/fiy/bcp can is-also several (rfcs)
+
+** so,
+we need to add is-also info in each rfc-entry
+
+then do we:
+1) handle three new arrays?
+2) just search in rfc array?
+
+note that bcp status is redondant with is-also bcp (which also gives number)
+
+STD0010 & 39 are historic
+
+we also need to display std (and other) info : list of mapped rfcs
+(new kind of dependency - is-also/contains)
+
+** how are STD dependency cross-references currently handled?
+they are ignored!
+see in rfcinfo-fold-all
+
+are there other than rfc2821?
+
+** NIC, IEN, RTR (external references)
 
 * rfcview problems
 
@@ -127,3 +208,11 @@ init code rfcinfo-load should rather be an autoload or something like that?
 * rfcview toadds
 
 next/previous heading
+
+* diff
+show what has changed since last update
+possibly remember changes?
+
+* future
+rfcinfo-fold-all number extracting assumes string format is RFCxxxx
+=> will break when number 9999 is exceeded!

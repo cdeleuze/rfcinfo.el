@@ -1,19 +1,19 @@
 
 On commence par charger le code lisp :
 
- M-x load-file /path/to/rfcinfo.el
+ M-x load-file <RET> /path/to/rfcinfo.el
 
 ou si on l'a installé dans un répertoire cherché par emacs (eg en
 plaçant (add-to-list 'load-path "<mon répertoire>") dans le .emacs),
 avec un
 
- M-x load-library rfcinfo
+ M-x load-library <RET>rfcinfo
 
 Il affiche un message d'erreur.
 La première chose à faire est de télécharger le fichier rfc-index et
 construire la base (cela prend quelques secondes) :
 
- M-x rfcinfo-refresh
+ M-x rfcinfo-refresh <RET>
 
 Maintenant on peut invoquer la fonction rfcinfo-show, soit par M-x
 rfcinfo-show, soit par C-c r.  On entre alors le numéro de RFC choisi,
@@ -31,13 +31,13 @@ choix par défaut.
 
 La deuxième fonctionalité est rfcinfo-open, accessible par C-c R.  On
 entre le numéro de RFC, il est téléchargé et une copie est gardée dans
-le répertoire désigné par la variable rfcinfo-cache-dir (par défaut,
-~/RFC/Cache).  S'assurer que ce répertoire existe bien !
+le répertoire `rfcinfo-cache-dir' (par défaut, ~/.cache/rfc/).
+S'assurer que ce répertoire existe bien !
 
 L'affichage est fait avec rfcview si il est présent.  Si ce n'est pas
 le cas, on peut le télécharger à
 http://www.loveshack.ukfsn.org/emacs/rfcview.el
-(pour Debian il est dans le paquetage emacs-goodies-el)
+(pour Debian il est dans le paquetage emacs-goodies-el).
 
 rfcinfo-open peut aussi ouvrir le RFC à un emplacement déterminé, ce
 qui est très pratique pour garder une référence sur un point précis

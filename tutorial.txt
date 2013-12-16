@@ -1,0 +1,56 @@
+
+Let's first load lisp code:
+
+ M-x load-file <RET> /path/to/rfcinfo.el
+
+or if you put it in a directory searched by emacs (eg by adding 
+(add-to-list 'load-path "<my dir>") in the .emacs file), just use
+
+ M-x load-library <RET> rfcinfo
+
+Oops! An error message is displayed.
+The first thing to do is to download the rfc-index file and build the
+database (this can take quite a few seconds):
+
+ M-x rfcinfo-refresh <RET>
+
+Now the command rfcinfo-show can be invoked, either by M-x
+rfcinfo-show or by C-c r.  Just enter the chosen RFC number, say 2205.
+
+Pretty?
+Up and down arrows allow moving to RFC numbers, right arrow to
+"follow" an RFC, left arrow to get back to previous state.  'q' closes
+the window.
+
+C-c r does not ask for a number if point is on an RFC number such as
+rfc1034, 1035 (try it here!), unless a prefix argument is provided
+(C-u C-c r).  In this case, the number is proposed as default.
+
+The second command is rfcinfo-open, bound to C-c R.  Give it an RFC
+number, the file is downloaded from `rfcinfo-remote-repository', a
+copy is saved in the directory `rfcinfo-cache-dir' (default is
+~/.cache/rfc/).  Please check this directory actually exists!
+
+Displaying uses rfcview if it's installed.  If not, it can be
+downloaded from http://www.loveshack.ukfsn.org/emacs/rfcview.el (on a
+Debian system, it is included in the emacs-goodies-el package).
+
+rfcinfo-open can also open an RFC and place the point at a specific
+location.  This is very convenient to keep a reference on a specific
+item.  For example (try C-c R on the following RFC references, use 'q'
+to quit):
+
+---
+rfc2181-5    RR has label, class, type and data. [+ defining RRSet]
+rfc2181-5.2  Resource Records also have a time to live (TTL).
+
+
+AA bit: the data matching the question name is authoritative
+(rfc1034-6.2.7) 
+
+rfc1035-4.1.1+42 (line 42 after section 4.1.1)
+---
+
+That's it.  See comments in file rfcinfo.el for more details.
+
+I welcome any comment or suggestion.

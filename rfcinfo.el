@@ -118,6 +118,7 @@
 
 ;; Global Variables:
 
+;; you may prefer to use /anonymous@ftp.ietf.org:/rfc/
 (defvar rfcinfo-remote-repository "/anonymous@ftp.ripe.net:/rfc/"
   "FTP repository where RFCs and index will be downloaded from.
 
@@ -132,7 +133,6 @@ access, if `rfcinfo-cache-flag' is non nil.")
   "If non nil, store a copy of each downloaded RFC in `rfcinfo-cache-dir'.")
 
 (defvar rfcinfo-index-xml-file "~/.cache/rfc/rfc-index.xml"
-;(defvar rfcinfo-index-xml-file "/home/deleuzec/rfc-index.xml"
   "The local (path)name of the rfc-index.xml file")
 
 (defvar rfcinfo-dbfile "~/.cache/rfc/rfcinfo.db"
@@ -284,7 +284,7 @@ Ignore section par if NBONLY is non-nil."
 ;; Try to find a ref at point
 
 ;; ref can start with rfc1034 or RFC 1035 or RFC-2205 or 2616.
-;; We also accept '+' to read a possible line offset. ZZZ
+;; We also accept '+' to read a possible line offset.
 
 (defun rfcinfo-ref-at-point ()
   (save-excursion
@@ -568,6 +568,7 @@ orange=experimental, purple=historic.
 	   ;; face for category
 	   (cf (cond
 		((member cat '(standard draft-std proposed-std)) 'bold)
+		;; unknown have no specific face
 		((eq cat 'bcp)           '(:foreground "green"))
 		((eq cat 'informational) '(:foreground "blue"))
 		((eq cat 'historic)      '(:foreground "purple"))
@@ -583,7 +584,7 @@ orange=experimental, purple=historic.
        (match-end 1)
        `(mouse-face highlight
          face ,(list cf of)
-         help-echo ,(concat "Yo! " (cadr (assoc 'title rfc)))))))
+         help-echo ,(car (rassoc cat rfcinfo-status-symbol))))))
   (goto-char (point-min)))
 
 (defun rfcinfo-errata (arg)
@@ -679,16 +680,18 @@ orange=experimental, purple=historic.
        (lambda (l) (cons (car l) (cddr l))) ;; this removes the nil attribute
        (rfcinfo-filter (lambda (e) (member (car-safe e) tags)) l)))
 
+(setq rfcinfo-status-symbol
+      '(("INTERNET STANDARD" . standard)
+	("DRAFT STANDARD"    . draft-std)
+	("PROPOSED STANDARD" . proposed-std)
+	("UNKNOWN"           . unknown)
+	("BEST CURRENT PRACTICE" . bcp)
+	("EXPERIMENTAL"      . experimental)
+	("HISTORIC"          . historic)
+	("INFORMATIONAL"     . informational)))
+
 (defun rfcinfo-status-symbol (s)
-  (let ((string-symbol '(("INTERNET STANDARD" . standard)
-			 ("DRAFT STANDARD"    . draft-std)
-			 ("PROPOSED STANDARD" . proposed-std)
-			 ("UNKNOWN"           . unknown)
-			 ("BEST CURRENT PRACTICE" . bcp)
-			 ("EXPERIMENTAL"      . experimental)
-			 ("HISTORIC"          . historic)
-			 ("INFORMATIONAL"     . informational))))
-    (cdr (assoc s string-symbol))))
+  (cdr (assoc s rfcinfo-status-symbol)))
 
 (defun rfcinfo-month-symbol (s)
   (let ((string-symbol 
@@ -746,7 +749,7 @@ orange=experimental, purple=historic.
 	     es))))
 
 (defun rfcinfo-import ()
-  ""
+  "Import `rfcinfo-index-xml-file' into `rfcinfo-status'."
   (interactive)
   (message "Importing RFC info from XML file.  This may take some time...")
 
@@ -814,7 +817,7 @@ File is downloaded from `rfcinfo-remote-repository'."
 ;; without displaying RFCs, it would be useless to load it.
 
 ;; Elisp reference manual (15.10) discourages use of eval-after-load
-;; but I don't know how to do that without it.
+;; but I don't know how to do that without it...
 
 (eval-after-load "rfcview"
   '(progn (define-key rfcview-mode-map "O" 'rfcinfo-open)
@@ -822,7 +825,7 @@ File is downloaded from `rfcinfo-remote-repository'."
 	  (define-key rfcview-mode-map "I" 'rfcinfo-status)
 	  (define-key rfcview-mode-map "G" 'rfcinfo-goto)))
 
-;; unless rfcview honors a rfcview-load-hook... then we can do the following:
+;; ...unless rfcview honors a rfcview-load-hook; then we can do the following:
 
 ;; (defun rfcinfo-change-rfcview-map ()
 ;;   (progn (define-key rfcview-mode-map "O" 'rfcinfo-open)
