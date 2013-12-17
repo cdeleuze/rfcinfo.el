@@ -368,11 +368,13 @@ Ignore section par if NBONLY is non-nil."
 (defun deps (typ header)
   (if (null typ) ""
     (rfcinfo-foldl (lambda (acc n)
-	     (let* ((rfc (aref rfcinfo-status n))
-		    (tit (cadr (assoc 'title rfc))))
-	       (concat acc "\n" (format "   %4d - %s" n tit))))
-	   header
-	   typ)))
+		     (if (numberp n)
+			 (let* ((rfc (aref rfcinfo-status n))
+				(tit (cadr (assoc 'title rfc))))
+			   (concat acc "\n" (format "   %4d - %s" n tit)))
+		       (concat acc "\n   " (rfcinfo-print-docid n))))
+		     header
+		     typ)))
 
 
 (defun rfcinfo-get-status (nb)
@@ -384,16 +386,17 @@ Ignore section par if NBONLY is non-nil."
 		  (authors (cdr  (assoc 'authors rfc)))
 		  (status  (cadr (assoc 'status rfc)))
 		  (date    (cdr  (assoc 'date rfc)))
+		  (isalso  (cadr  (assoc 'is-also rfc))) ;; we assume only one elt in list
 		  (upd     (cdr  (assoc 'updates rfc)))
 		  (obs     (cdr  (assoc 'obsoletes rfc)))
 		  (upd-by  (cdr  (assoc 'updated-by rfc)))
 		  (obs-by  (cdr  (assoc 'obsoleted-by rfc)))
 		  (errata  (assoc 'errata rfc)))
-	      
-	      (insert (format "%d -%c %s\n%S  %S %i %s\n%s\n%s%s%s%s" nb 
+	      (insert (format "%d -%c %s\n%S  %S %i %s %s\n%s\n%s%s%s%s" nb 
 			      (if (rfcinfo-cached-p nb) ?+ ?-)
 			      title status 
 			      (car date) (cadr date)
+			      (if isalso (rfcinfo-print-docid isalso) "")
 			      (if errata
 				  (concat (propertize "Errata"
 						      'mouse-face 'highlight
@@ -407,7 +410,7 @@ Ignore section par if NBONLY is non-nil."
 	    (rfcinfo-set-properties)
 	    (buffer-substring (point-min) (point-max)))))
     ;; error if we aref out of the array
-    (error (error "Unknown RFC number: %d" nb))))
+    (args-out-of-range (error "Unknown RFC number: %d" nb))))
 
 (defun rfcinfo-do-open (ref)
   (let* ((rfc (concat "rfc" (number-to-string (car ref)) ".txt"))
@@ -701,6 +704,31 @@ orange=experimental, purple=historic.
 	   ("April"    . apr) ("August" . aug) ("December"  . dec))))
     (cdr (assoc s string-symbol))))
 
+(defun rfcinfo-docid (e)
+  (let ((nb (string-to-number (substring (caddr e) 3)))
+	(kind (substring (caddr e) 0 3)))
+    (cond
+      ((equal kind "RFC") nb)
+      ((equal kind "STD") (cons 'std nb))
+      ((equal kind "BCP") (cons 'bcp nb))
+      ((equal kind "FYI") (cons 'fyi nb))
+      ((equal kind "NIC") (cons 'nic nb))
+      ((equal kind "IEN") (cons 'ien nb))
+      ((equal kind "RTR") (cons 'rtr nb))
+      (t (error "rfcinfo-docid for: %s" (caddr e))))))
+
+(defun rfcinfo-print-docid (e)
+  (if (numberp e) (number-to-string e)
+    (concat (case (car e)
+	      ('std "STD")
+	      ('bcp "BCP")
+	      ('fyi "FYI")
+	      ('nic "NIC")
+	      ('ien "IEN")
+	      ('rtr "RTR"))
+	    (format "%d" (cdr e)))))
+
+
 ;; take an rfc element, fold inner elements
 ;; result has form (nb (title "title") (field field_values) ... )
 
@@ -708,7 +736,7 @@ orange=experimental, purple=historic.
   (let ((deps '(obsoletes updates obsoleted-by updated-by))
 
 	;; get the number xxxx from a string of the form "RFCxxxx"
-	(nb   '(lambda (s) (string-to-number (substring s 3 7))))
+	(nb   '(lambda (s) (string-to-number (substring s 3))))
 
 	(date '(lambda (e) (let ((month (rfcinfo-filter-tag 'month e))
 				 (year  (rfcinfo-filter-tag 'year  e)))
@@ -726,11 +754,9 @@ orange=experimental, purple=historic.
 		    ;; one of the 4 dependency lists
 		    ((member (car el) deps)
 		     (let* ((ids (rfcinfo-filter-tag 'doc-id el))
-			    ;; filter out old non RFC dependencies
-			    (l   (rfcinfo-filter (lambda (s) (string= (substring s 0 3) "RFC"))
-						 (mapcar 'caddr ids))))
-		       (if (null l) nil ;; empty list
-			 (cons (car el) (mapcar nb l)))))
+			    (l (mapcar 'rfcinfo-docid ids)))
+		       (if (null l) nil
+			 (cons (car el) l))))
 		    
 		    ((eq (car el) 'date)
 		     (cons 'date (funcall date el)))
@@ -743,6 +769,9 @@ orange=experimental, purple=historic.
 		    
 		    ((eq (car el) 'errata-url)
 		     (list 'errata))
+
+		    ((eq (car el) 'is-also)
+		     (cons 'is-also (mapcar 'rfcinfo-docid  (rfcinfo-filter-tag 'doc-id el))))
 		    
 		    (t el))
 		 el))
@@ -754,7 +783,7 @@ orange=experimental, purple=historic.
   (message "Importing RFC info from XML file.  This may take some time...")
 
   (let (;; the elements we need inside an rfc-entry
-	(fields '(doc-id title author date obsoletes updates 
+	(fields '(doc-id title author date is-also obsoletes updates 
 			 obsoleted-by updated-by current-status
 			 errata-url))
 	;; replace the several author elements by one ('authors ...) list
