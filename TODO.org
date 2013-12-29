@@ -1,6 +1,10 @@
 
 * priority
 
+STD3 updates STD7? check this.
+
+use menu Elisp/check documentation strings
+
 a word about erratas
 make ref (doc/integration)
 
@@ -207,7 +211,8 @@ init code rfcinfo-load should rather be an autoload or something like that?
 
 * rfcview toadds
 
-next/previous heading
+next/previous heading navigation ala outline or org-mode
+
 
 * diff
 show what has changed since last update
@@ -216,3 +221,4 @@ possibly remember changes?
 * future
 rfcinfo-fold-all number extracting assumes string format is RFCxxxx
 => will break when number 9999 is exceeded!
+ok, fixed
