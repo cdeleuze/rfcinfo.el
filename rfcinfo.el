@@ -34,27 +34,63 @@
 
 ;;; Commentary:
 
-;; RFCs are documents published by the IETF, including Internet
-;; standards.  These are of diffent categories including standard,
-;; informational etc.  Since once published, an RFC is never modified,
-;; each RFC has an evolving `status' indicating it's been obsolated or
-;; updated and if so by what other RFCs.  This file provides functions
-;; for displaying and browsing RFC's status information as well as
-;; downloading them and jumping to a precise location.
+;; RFCs are numbered documents published by the IETF, including
+;; Internet standards.  These are of diffent categories including
+;; standard, informational etc.  Since once published, an RFC is never
+;; modified, each RFC has an evolving "status" indicating it's been
+;; obsolated or updated and if so by what other RFCs.
+;;
+;; A few "sub-series" are also defined: STDnn (nn being a number) has
+;; a title and maps to one or a few RFCs.  BCPnn and FYInn map to a
+;; single RFC.  The mappings are subject to change (although the FYI
+;; subseries has been concluded and will not change any more, see
+;; RFC6360).
+;;
+;; This file provides functions for displaying and browsing RFC's
+;; status information as well as downloading them and jumping to a
+;; precise location.  Document status can also be queried from
+;; sub-series numbers.
 
+;; We call "docid string" a string identifying an RFC or a sub-series
+;; document.  It has the following structure:
+;;
+;; 1 - a three letter prefix identifying the subseries
+;; 2 - a number
+;;
+;; Those can be directly concatenated or separated by a single space
+;; or dash '-'.  The prefix is optional, defaulting to "RFC".
+;;
+;; Thus "RFC1034", "1035", "STD-3", "BCP 33", "FYI6" are docid
+;; strings.
+;;
+;; A "loc string" is used to identify a precise point in an RFC
+;; document.  It is made of a section number and a optional line
+;; offset, separated by a '+'.
+;; 
+;; For example loc strings "4.1.2" and "4.1.2+42" represent section
+;; 4.1.2 and a point 42 lines below the header of section 4.1.2.
+;;
+;; A docid string for an RFC (not a sub-series) can also contain a
+;; loc, separated from the main part with a dash '-'.
+;;
+;; Examples: "RFC1034-4.1.2", "1034-4.1.2", "RFC-1034-4.1.2+42"
+;;
 ;; If rfcview-mode is used to view RFCs, a few keys are also added to
 ;; rfcview-mode-map so that rfcinfo functions can easily be called
 ;; from rfcview-mode.  However, rfcinfo does not require rfcview to be
 ;; loaded or available.  rfcview can be downloaded from
 ;; http://www.loveshack.ukfsn.org/emacs/rfcview.el
+;;
+;; Information about RFCs and sub-series is imported from an official
+;; rfc-index.xml file from IETF RFC repository (configured as
+;; `rfcinfo-remote-repository') which can be copied locally to
+;; `rfcinfo-index-xml-file'.  This can be done manually or with
+;; function `rfcinfo-refresh'.  The information is imported into Lisp
+;; vectors that are then used to answer information queries.  Since
+;; the import is a bit long (typically a few seconds) the vectors are
+;; saved as `rfcinfo-dbfile'.
 
-;; The information is taken from an official rfc-index.xml file from
-;; IETF RFC repository (see `rfcinfo-remote-repository') which can be
-;; copied locally to `rfcinfo-index-xml-file'.  This can be done
-;; manually or with `rfcinfo-refresh'.  The information is "imported"
-;; into a lisp vector that is then used to answer information queries.
-;; Since the import is a bit long (typically a few seconds) the vector
-;; is saved as `rfcinfo-dbfile'.
+;;; List of provided commands
 
 ;; rfcinfo-load   loads the content of rfcinfo-dbfile in memory.
 ;; rfcinfo-import imports from xml file, saves to rfcinfo-dbfile and
@@ -66,39 +102,36 @@
 
 ;; rfcinfo-show
 
-;;    show rfc title, authors, date and current status (category, list
-;;    of rfcs that are obsoleted/updated, list of rfcs that
-;;    obsolete/update it).  Arrow keys allow to navigate through the
-;;    above 4 categories of related RFCs.
+;;    gets a docid (ignoring loc part if any), show title, authors,
+;;    date and current status (category, list of dependencies (list of
+;;    obsoleted/updated and obsolating/updating)).  Arrow keys allow
+;;    to navigate through dependencies.
 
 ;; rfcinfo-open
 
-;;    take a 'rfc ref' as argument: rfc number and optionnally a
-;;    section number following a '-' (eg 1035-6.4.1), open rfc and
-;;    position point on the section header.  The rfc status (category
-;;    and update/obsolete stuff) is written in the echo area.  The
-;;    section number can also be followed by a "+" and a line offset
-;;    to move down (eg 1035-6.4.1+18).  This can be useful to get to a
-;;    very paragraph in a long section.
+;;    gets a RFC docid, open the RFC and position point on the given
+;;    location.  The rfc status (category and update/obsolete stuff)
+;;    is written in the echo area.
 ;;
 ;;    The RFC is either read from a local cache directory or
 ;;    downloaded with ange-ftp.
 
 ;; rfcinfo-goto
 
-;;    move point to header of given section number.
+;;    gets a loc and move point to that location in current RFC.
 
-;; ZZZ The above three functions read their argument from the mini-buffer.
-;; If point is on a possible argument, this is proposed as default.
-;; + prefix arg
+;; The above three functions read their argument from the mini-buffer.
+;; If point is on a possible argument, this is directly used, unless a
+;; prefix argument is given: the possible argument at point is
+;; proposed as default.
 
 ;; Should work on all versions of (x)Emacs.
 ;; Please let me know if this is not the case.
 
-;; Installation
+;;; Installation
 ;;
 ;; copy file rfcinfo.el to some directory and add the following to eg
-;; your .emacs file
+;; your .emacs file:
 
 ;; (add-to-list 'load-path <the chosen directory>)
 ;; (global-set-key "\C-cr" 'rfcinfo-show)
@@ -182,6 +215,13 @@ access, if `rfcinfo-cache-flag' is non nil.")
     (apply 'concat (mapcar (lambda (s) (concat s "\n")) ;
 		    (rfcinfo-take n lines)))))
 
+(defun rfcinfo-current-line ()
+  "Get the current line number (in the buffer) of point."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (1+ (count-lines 1 (point)))))
+
 ;;; First the user entry points
 
 (defun rfcinfo-show (ask)
@@ -197,20 +237,19 @@ non nil, always ask (found number proposed as default)."
 The RFC is either loaded from `rfcinfo-cache-dir' or downloaded
 from `rfcinfo-remote-repository."
   (interactive "P")
-  (rfcinfo-do-open (rfcinfo-read-docid "View " ask t t)))
+  (rfcinfo-do-open (rfcinfo-read-docid "View " ask 'non-local t)))
 
 (defun rfcinfo-goto (ask)
   "Goto given section number in current RFC."
   (interactive "P")
   (rfcinfo-do-goto (rfcinfo-read-loc "" ask)))
 
-
 ;;; Reading and printing docids
 
 ;; A docid is a cons cell that identifies either:
 ;; - an RFC: the car is the rfc number, as in (2205)
 ;;
-;; - a subseries document: the car is the symbol for the subseries
+;; - a sub-series document: the car is the symbol for the sub-series
 ;;   (std, bcp or fyi), the cdr is the number, as in (std . 3) or (bcp
 ;;   . 33).
 ;;
@@ -219,36 +258,16 @@ from `rfcinfo-remote-repository."
 ;;
 ;; A loc is also a cons cell, whose car is a string denoting a section
 ;; number and the (optional) cdr is a line offset after this section
-;; header.  Thus (1034 . ("4.1.1" . 42)) or (1034 "4.1.1" . 42)
+;; header.  Thus (1034 . ("4.1.1" . 42)) which can also be noted (1034 "4.1.1" . 42)
 ;; denotes line 42 after section header 4.1.1 of RFC 1034.
 ;;
-;; We call 'docid string' the printed representation of a docid.  It
-;; has the following structure:
-;; 1 - a three letter prefix identifying the subseries
-;; 2 - a number
-;; Those can be separated by a single space or dash '-'.
-;; The prefix is optional, defaulting to "RFC".
-;;
-;; Thus "RFC1034", "1035", "STD-3", "BCP 33", "FYI6" are docid strings
-;;
-;; The printed representation of a loc is the section number string,
-;; optionally concatenated with the string "+" and the string
-;; containing the line offset.
-;;
-;; Examples of loc strings: "4.1.2", "4.1.2+42"
-;;
-;; If the docid is for an RFC and has a non nil doc, the printed
-;; representation of the loc in joined with a dash "-" to the rest of
-;; the docid string.
-;;
-;; Examples: "RFC1034-4.1.2", "RFC-1034-4.1.2+42", "1034-4.1.2"
 
 ;; These regexps have been built with the help of re-builder
 
 (setq rfcinfo-re-loc "\\([[:digit:]]+\\(\\.[[:digit:]]+\\)*\\)\\(\\+\\([[:digit:]]+\\)\\)?")
 
 ;; sub matches for rfcinfo-re-loc
-;; 1 - section number
+;; 1 - section number (not a number, by the way)
 ;; 4 - line offset
 
 (setq rfcinfo-re-docid (concat "\\(\\(RFC\\|rfc\\)? ?-?\\([[:digit:]]+\\)\
@@ -257,20 +276,21 @@ from `rfcinfo-remote-repository."
 \\(\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)\\)"))
 
 ;; sub-matches for rfcinfo-re-docid
-;; 1 - complete rfc ref
+;; 1 - complete rfc docid
 ;; 2 - rfc prefix
 ;; 3 - rfc number
 ;; 5 - rfc suffix
 ;; 6 - rfc suffix section part
 ;; 9 - rfc suffix line offset part
-;; 10 - complete subseries ref
+;; 10 - complete subseries docid
 ;; 11 - subseries prefix
 ;; 12 - subseries number
 
 (defun rfcinfo-at-point (re p)
   "Match regexp RE at position P.
 
-Search regexp from beginning of line, check point is in matched text."
+Search regexp from beginning of line, check that point is in
+matched text."
   (ignore-errors
     (beginning-of-line)
     (let ((cont t))
@@ -297,10 +317,11 @@ Search regexp from beginning of line, check point is in matched text."
 	(cons (intern (downcase (match-string 11 s))) (string-to-number (match-string 12 s))))))
 
 (defun rfcinfo-read-docid (msg ask &optional non-local loc)
-  "Use docid at point or prompt for it.
+  "Get docid at point or prompt for it.
 
 If nothing is found at point, prompt for docid.
-If ASK is non nil, prompt for docid, proposing docid at point as default."
+ASK non nil means prompt for docid, proposing docid at point as default.
+LOC non nil means include location part as well."
   (let ((def (or (rfcinfo-docid-at-point)
 		 (and (not non-local) (rfcinfo-buffer-holds-one)))))
     (if (or ask (not def))
@@ -324,6 +345,7 @@ If ASK is non nil, prompt for docid, proposing docid at point as default."
 	(cons (match-string 1 s) (if ofs (string-to-number ofs))))))
 
 (defun rfcinfo-read-loc (msg ask &optional)
+  "Get loc at point or prompt for it."
   (let ((def (rfcinfo-loc-at-point)))
     (if (or ask (not def))
 	(let ((sdef (if def (concat (car loc) (if (cdr loc) (format "+%i" (cdr loc)) "")))))
@@ -440,7 +462,7 @@ HEADER."
 				  (concat (propertize "Errata"
 						      'mouse-face 'highlight
 						      'face '(:foreground "red")
-						      'help-echo "toto") "")
+						      'help-echo "Show errata in web browser") " ")
 				"")
 			      (rfcinfo-foldl1 (lambda (acc s) (concat acc ", " s))  authors)
 			      (rfcinfo-deps upd-by "\nupdated by")
@@ -471,14 +493,14 @@ HEADER."
     (args-out-of-range (error "Unknown STD number: %d" nb))))
 
 
-(defun rfcinfo-do-open (ref)
-  (let* ((rfc (concat "rfc" (number-to-string (car ref)) ".txt"))
+(defun rfcinfo-do-open (id)
+  (let* ((rfc (concat "rfc" (number-to-string (car id)) ".txt"))
 	 (localname (concat rfcinfo-cache-dir rfc)))
-    (if (file-exists-p localname) (rfcinfo-view localname (cdr ref))
+    (if (file-exists-p localname) (rfcinfo-view localname (cdr id))
       (message "Not in cache. Attempting Download...")
-      (rfcinfo-view (concat rfcinfo-remote-repository rfc) (cdr ref))
+      (rfcinfo-view (concat rfcinfo-remote-repository rfc) (cdr id))
       (if rfcinfo-cache-flag (write-file localname)))
-    (rfcinfo-do-show ref t)))
+    (rfcinfo-do-show id t)))
 
 
 ;; position point to last occurence of regepx
@@ -491,7 +513,7 @@ HEADER."
     (goto-char (point-max))
     (if (null (search-backward-regexp re nil t))
 	(progn (goto-char p)
-	       (error "Coudn't find section %s." (car loc)))
+	       (error "Couldn't find section %s." (car loc)))
       (if (cdr loc) (forward-line (cdr loc)))
       (recenter 0))))
 
@@ -509,9 +531,9 @@ HEADER."
 (defun rfcinfo-bortzmeyer ()
   "Browse Bortzmeyer blog for RFC at point."
   (interactive)
-  (let* ((ref (rfcinfo-read-docid "Browse Bortzmeyer blog for " nil))
+  (let* ((id  (rfcinfo-read-docid "Browse Bortzmeyer blog for " nil))
 	 (url (concat "http://www.bortzmeyer.org/"
-		      (number-to-string (car ref)) ".html")))
+		      (number-to-string (car id)) ".html")))
     (browse-url url)))
 ;;    (w3m url)))
 
@@ -591,7 +613,7 @@ orange=experimental, purple=historic.
 
 (defun rfcinfo-follow ()
   (interactive)
-  (if (> (current-line) 1)
+  (if (> (rfcinfo-current-line) 1)
       (rfcinfo-do-show (rfcinfo-docid-at-point) nil) ;; ZZZ should just get the number!
     ;; if we're on the first line goto std entry if there's one
     (save-excursion
@@ -745,13 +767,15 @@ orange=experimental, purple=historic.
     (cdr (assoc s string-symbol))))
 
 (defun rfcinfo-fold-docid (e)
-  (rfcinfo-string-to-docid (caddr e)))
+  (let ((id (rfcinfo-docid-at-point (caddr e))))
+    (if (numberp (car id)) (car id) id)))
 
-(defun rfcinfo-print-docid (id &optional loc)
+(defun rfcinfo-print-docid (id &optional loc full)
+  "Print ID.  LOC: include RFC location; FULL: include RFC prefix."
   (if (numberp (car id)) (concat
-			 "RFC" (number-to-string (car id))
-			 (if (and loc (cadr id)) (format "-%s" (cadr id)) "")
-			 (if (and loc (cddr id)) (format "+%i" (caddr id)) ""))
+			  (if full "RFC" "") (number-to-string (car id))
+			  (if (and loc (cadr id)) (format "-%s" (cadr id)) "")
+			  (if (and loc (cddr id)) (format "+%i" (cddr id)) ""))
     (concat (case (car id)
 	      ('std "STD")
 	      ('bcp "BCP")
@@ -762,7 +786,7 @@ orange=experimental, purple=historic.
 	    (format "%d" (cdr id)))))
 
 (defun rfcinfo-lookup-subseries (docid)
-  "Search the rfc which is-also DOCID
+  "Search the rfc which is-also DOCID.
 
 Return nil if none"
   (let ((max (1- (length rfcinfo-status)))
@@ -942,6 +966,7 @@ File is downloaded from `rfcinfo-remote-repository'."
     s))
 
 ;; ZZZ check rfcview-mode is active
+
 (defun rfcinfo-build-ref ()
   "Build a ref for current point in current RFC.
 Uses rfcview-local-heading-alist.  ref is displayed and

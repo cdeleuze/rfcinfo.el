@@ -1,5 +1,21 @@
+rfcinfo-show : STD all stds, etc
+               words : search title
+
+build-ref do not use rfcview, search for section header with re-loc
+-> re-sec, re-loc
+
+'I' in *rfcinfo* -> close window
+
+allow going forward in history -> which key ?
+
+cleaner way to define keymap?
+(mapc (lambda (p) (define-key rfcview-mode-map (car p) (cdr p)))
+      '(( "0" . rfcinfo-goto)
+	( "1" . rfcinfo-bortzmeyer)))
 
 * priority
+
+clean-up non-local arg in read-docid
 
 STD3 updates STD7? check this.
 
@@ -32,7 +48,6 @@ pb: caddr not defined!
 * additional features
 ** search author
 ** search in abstract
-
 ** show abstract
     -> what exactly does abstract element contain in xml index?
        document abstract if one exists + [STANDARDS-TRACK] if applicable
@@ -43,6 +58,7 @@ xml file has some
 
 ** search keywords
 
+** show recursive dependencies
 ** others
 
 generate map (viz) and display it in browser
@@ -219,6 +235,8 @@ show what has changed since last update
 possibly remember changes?
 
 * future
-rfcinfo-fold-all number extracting assumes string format is RFCxxxx
+
+*FIXED* rfcinfo-fold-all number extracting assumes string format is RFCxxxx
 => will break when number 9999 is exceeded!
-ok, fixed
+
+evolve into a dired-like interface?
