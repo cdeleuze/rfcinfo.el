@@ -1,5 +1,5 @@
-rfcinfo-show : STD all stds, etc
-               words : search title
+set-properties, string-to-number pb si STD10 (rfc772)
+STD10 n'est pas barré
 
 build-ref do not use rfcview, search for section header with re-loc
 -> re-sec, re-loc
@@ -233,6 +233,27 @@ next/previous heading navigation ala outline or org-mode
 * diff
 show what has changed since last update
 possibly remember changes?
+
+* done
+
+rfcinfo-show : STD all stds, etc
+               words : search title
+
+pb std34 (car aucun contenu, rfcinfo-do-show cherche "-" = après le
+numéro du rfc, mais pas le cas pour un std
+=> changé ~~ en -~ + déplacé save-excursion dans rfcinfo-follow
+
+dep STD10 (ex 772), le 10 est barré
+(car rfc10 est obsolète et rfcinfo-set-properties utilise
+rfcinfo-regexp et string-to-number)
+(+ STD10 est obsolète par 2821, devrait barrer STD10 complet ?)
+revoir def de rfcinfo-regexp
+
+STD in a dependency should
+  - display title
+  - be forwardable
+but, this only occurs three times: rfc772, 780, 788...
+also 2821 !
 
 * future
 

@@ -270,10 +270,23 @@ from `rfcinfo-remote-repository."
 ;; 1 - section number (not a number, by the way)
 ;; 4 - line offset
 
+(setq rfcinfo-re-subseries "\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)")
+
 (setq rfcinfo-re-docid (concat "\\(\\(RFC\\|rfc\\)? ?-?\\([[:digit:]]+\\)\
-\\(-\\(" rfcinfo-re-loc "\\)\\)?\\)\
-\\|\
-\\(\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)\\)"))
+\\(-\\(" rfcinfo-re-loc "\\)\\)?\\)\\|\\(" rfcinfo-re-subseries "\\)"))
+
+
+;(defconst rfcinfo-regexp "\\([[:digit:]]+\\) -"
+;  "Regexp to locate an RFC number in *RFC info* buffer.")
+
+(defconst rfcinfo-regexp (concat "\\(\\([[:digit:]]+\\)\\|\\(" rfcinfo-re-subseries "\\)\\) -"))
+;;\\(\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)\\)\\) -")
+
+
+;; (setq rfcinfo-re-docid (concat "\\(\\(RFC\\|rfc\\)? ?-?\\([[:digit:]]+\\)\
+;; \\(-\\(" rfcinfo-re-loc "\\)\\)?\\)\
+;; \\|\
+;; \\(\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)\\)"))
 
 ;; sub-matches for rfcinfo-re-docid
 ;; 1 - complete rfc docid
@@ -304,9 +317,12 @@ matched text."
 (defun rfcinfo-docid-at-point (&optional s)
   "Get docid at point or in string S."
   (if
-      (if s (and (= 0 (string-match rfcinfo-re-docid s))
+      ;; look for docid
+      (if s (and (string-match rfcinfo-re-docid s)
+		 (= 0 (match-beginning 0))
 		 (= (length s) (match-end 0)))
 	(save-excursion (rfcinfo-at-point rfcinfo-re-docid (point))))
+      ;; found one!
       (if (match-string 1 s)
 	  ;; matched an RFC docid
 	  (let ((nb  (string-to-number (match-string 3 s)))
@@ -327,11 +343,12 @@ LOC non nil means include location part as well."
     (if (or ask (not def))
 	(let ((sdef (if def (rfcinfo-print-docid def loc))))
 	  ;; ZZZ should directly use def if default selected
-	  (rfcinfo-docid-at-point (read-string
-				   (if (null def) (concat msg "RFC number: ")
-				     (concat msg "RFC number (default "
-					     sdef "): "))
-				   nil nil sdef)))
+	  (let ((s (read-string
+		    (if (null def) (concat msg "RFC number: ")
+		      (concat msg "RFC number (default "
+			      sdef "): "))
+		    nil nil sdef)))
+	    (or (rfcinfo-docid-at-point s) s)))
       def)))
 
 (defun rfcinfo-loc-at-point (&optional s)
@@ -402,7 +419,7 @@ LOC non nil means include location part as well."
 	  (erase-buffer)
 	  (insert st)
 	  (goto-char (point-min))
-	  (search-forward "-") (backward-char 2))
+	  (search-forward " -") (backward-char 2))
 	(rfcinfo-mode)
 	(set-window-buffer rfcinfo-window rfcinfo-buffer)
 	(fit-window-to-buffer)))))
@@ -412,19 +429,28 @@ LOC non nil means include location part as well."
 HEADER."
   (if (null l) ""
     (rfcinfo-foldl (lambda (acc n)
-		     (if (numberp n)
-			 (let* ((rfc (aref rfcinfo-status n))
-				(tit (cadr (assoc 'title rfc)))
-				(ia  (cadr (assoc 'is-also rfc))))
-			   (concat acc "\n" 
-				   (format " %5s %4d - %s"
-					   (if ia (rfcinfo-print-docid ia) "    ") n tit)))
-		       (concat acc "\n   " (rfcinfo-print-docid n))))
+		     (cond 
+		      ((numberp n)
+		       (let* ((rfc (aref rfcinfo-status n))
+			      (tit (cadr (assoc 'title rfc)))
+			      (ia  (cadr (assoc 'is-also rfc))))
+			 (concat acc "\n" 
+				 (format "%6s %4d - %s"
+					 (if ia (rfcinfo-print-docid ia) "    ") n tit))))
+		       ((eq 'std (car n))
+			(concat acc "\n" (format "      %4s - %s" (rfcinfo-print-docid n)
+						 (cadr (assoc 'title (aref rfcinfo-std-status (cdr n)))))))
+		       (t
+			(concat acc "\n   " (rfcinfo-print-docid n)))))
 		     header
 		     l)))
 
 (defun rfcinfo-get-status (id)
   (cond
+   ((equal "STD" id) (rfcinfo-list-std))
+   ((equal "BCP" id) (rfcinfo-list-sub 'bcp))
+   ((equal "FYI" id) (rfcinfo-list-sub 'fyi))
+   ((atom id) (rfcinfo-search-title-get id))
    ;; an RFC
    ((numberp (car id)) (rfcinfo-get-rfc-status (car id)))
    ;; a STD
@@ -482,7 +508,7 @@ HEADER."
 	  (if (null std) (message (format "%d: unknown STD" nb))
 	    (let ((title   (cadr (assoc 'title std)))
 		  (isalso  (cdr  (assoc 'is-also std))))
-	      (insert (format "STD%d ~~ %s\n%s"
+	      (insert (format "STD%d -~ %s\n%s"
 			      nb
 			      title
 			      (rfcinfo-deps isalso "\ncontents:"))))
@@ -577,10 +603,6 @@ orange=experimental, purple=historic.
       (error "You shouldn't set rfcinfo-mode yourself")
     (setq buffer-read-only t)))
 
-
-(defconst rfcinfo-regexp "\\([[:digit:]]+\\) -"
-  "Regexp to locate an RFC number in *RFC info* buffer.")
-
 (setq rfcinfo-scroll-up t)
 
 (defun rfcinfo-scroll ()
@@ -616,11 +638,11 @@ orange=experimental, purple=historic.
   (if (> (rfcinfo-current-line) 1)
       (rfcinfo-do-show (rfcinfo-docid-at-point) nil) ;; ZZZ should just get the number!
     ;; if we're on the first line goto std entry if there's one
-    (save-excursion
-      (beginning-of-line)
-      (let ((id (rfcinfo-docid-at-point)))
-	(if (eq (car id) 'std) (rfcinfo-do-show id nil)
-	  (message "This RFC is not part of the STD sub-series"))))))
+    (let ((id (save-excursion
+		(beginning-of-line)
+		(rfcinfo-docid-at-point))))
+      (if (eq (car id) 'std) (rfcinfo-do-show id nil)
+	(message "This RFC is not part of the STD sub-series")))))
 
 (defun rfcinfo-viewfile ()
   (interactive)
@@ -693,6 +715,40 @@ orange=experimental, purple=historic.
     (if (string= (thing-at-point 'word) "Errata")
 	(rfcinfo-errata nil)
       (rfcinfo-status nil))))
+
+(defun rfcinfo-list-std ()
+  (let* ((max (length rfcinfo-std-status))
+	 (l (let ((i (1- max))
+		  (l))
+	      (while (> i 0)
+		(if (assoc 'is-also (aref rfcinfo-std-status i))
+		    (setq l (cons (cons 'std i) l)))
+		(setq i (1- i)))
+	      l)))
+    (with-temp-buffer
+      (insert
+       (format "List of STDs\n%s"
+	       (rfcinfo-deps l "")))
+      (rfcinfo-set-properties)
+      (buffer-substring (point-min) (point-max)))))
+
+;; ZZZ sorted by rfc number
+(defun rfcinfo-list-sub (sub)
+  (let* ((max (length rfcinfo-status))
+	 (l (let ((i (1- max))
+	       (l))
+	   (while (> i 0)
+	     (let ((also (cadr (assoc 'is-also (aref rfcinfo-status i)))))
+	       (if (eq sub (car also))
+		   (setq l (cons i l)))
+	       (setq i (1- i))))
+	   l)))
+    (with-temp-buffer
+      (insert
+       (format "List of %s sub-series\n%s" (upcase (symbol-name sub))
+	       (rfcinfo-deps l "")))
+      (rfcinfo-set-properties)
+      (buffer-substring (point-min) (point-max)))))
 
 ;;; Searching the DB
 
