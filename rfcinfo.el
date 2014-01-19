@@ -2,7 +2,7 @@
 ;;;                Downloading and jumping to RFC locations
 ;;;                requires 'cl
 
-;; Copyright (C) 2005-2013 Christophe Deleuze <christophe.deleuze@free.fr>
+;; Copyright (C) 2005-2014 Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
 ;; Version: 0.55 / Oct 2013
 ;; --Version: 0.54 / Jun 2013
@@ -107,6 +107,10 @@
 ;;    obsoleted/updated and obsolating/updating)).  Arrow keys allow
 ;;    to navigate through dependencies.
 
+;;    If the read string is FYI, BCP or STD display the sub-series
+;;    list.  If it's some other string, perform a string search in RFC
+;;    titles.
+
 ;; rfcinfo-open
 
 ;;    gets a RFC docid, open the RFC and position point on the given
@@ -124,6 +128,7 @@
 ;; If point is on a possible argument, this is directly used, unless a
 ;; prefix argument is given: the possible argument at point is
 ;; proposed as default.
+
 
 ;; Should work on all versions of (x)Emacs.
 ;; Please let me know if this is not the case.
@@ -163,17 +168,17 @@ This is where downloaded RFCs will be stored for later offline
 access, if `rfcinfo-cache-flag' is non nil.")
 
 (defvar rfcinfo-cache-flag t
-  "If non nil, store a copy of each downloaded RFC in `rfcinfo-cache-dir'.")
+  "Non-nil means store a copy of each downloaded RFC in `rfcinfo-cache-dir'.")
 
 (defvar rfcinfo-index-xml-file "~/.cache/rfc/rfc-index.xml"
-  "The local (path)name of the rfc-index.xml file")
+  "The local (path)name of the rfc-index.xml file.")
 
 (defvar rfcinfo-dbfile "~/.cache/rfc/rfcinfo.db"
-  "Pathname of the file where rfc information will be stored")
+  "Pathname of the file where rfc information will be stored.")
 
 (defvar rfcinfo-errata-url-prefix
   "http://www.rfc-editor.org/errata_search.php?rfc="
-  "Prefix of the errata URL, for RFCs that have one")
+  "Prefix of the errata URL, for RFCs that have one.")
 
 
 ;; no defvar?
@@ -187,7 +192,7 @@ access, if `rfcinfo-cache-flag' is non nil.")
 ;;; A few general purpose functions
 
 (defun rfcinfo-foldl (f e l)
-  "Constant space fold-left"
+  "Constant space fold-left."
   (let ((rest l)
 	(acc e))
     (while (consp rest)
@@ -196,21 +201,21 @@ access, if `rfcinfo-cache-flag' is non nil.")
     acc))
 
 (defun rfcinfo-foldl1 (f l)
-  "Constant space fold-left1"
+  "Constant space fold-left1."
   (rfcinfo-foldl f (car l) (cdr l)))
 
 (defun rfcinfo-filter (p l)
-  "Constant space filter"
+  "Constant space filter."
   (nreverse
    (rfcinfo-foldl (lambda (acc e) (if (funcall p e) (cons e acc) acc)) nil l)))
 
 (defun rfcinfo-take (n l)
-  "Take first N elements of list L"
+  "Take first N elements of list L."
   (let ((test (lambda (e) (setq n (1- n)) (>= n 0))))
     (rfcinfo-filter test l)))
 
 (defun rfcinfo-string-n-lines (n s)
-  "Take first N lines of string S"
+  "Take first N lines of string S."
   (let ((lines (split-string s "\n")))
     (apply 'concat (mapcar (lambda (s) (concat s "\n")) ;
 		    (rfcinfo-take n lines)))))
@@ -226,8 +231,8 @@ access, if `rfcinfo-cache-flag' is non nil.")
 
 (defun rfcinfo-show (ask)
   "Display RFC information.
-Number is taken at point, from buffer name, or asked.  If ASK is
-non nil, always ask (found number proposed as default)."
+Docid is taken at point, from buffer name, or asked.  If ASK is
+non nil, always ask (found docid proposed as default)."
   (interactive "P")
   (let ((id (rfcinfo-read-docid "Info for " ask)))
     (rfcinfo-do-show id nil)))
@@ -264,40 +269,38 @@ from `rfcinfo-remote-repository."
 
 ;; These regexps have been built with the help of re-builder
 
-(setq rfcinfo-re-loc "\\([[:digit:]]+\\(\\.[[:digit:]]+\\)*\\)\\(\\+\\([[:digit:]]+\\)\\)?")
+(defconst rfcinfo-re-loc
+  "\\([[:digit:]]+\\(\\.[[:digit:]]+\\)*\\)\\(\\+\\([[:digit:]]+\\)\\)?"
+  "Regexp matching a loc string.
 
-;; sub matches for rfcinfo-re-loc
-;; 1 - section number (not a number, by the way)
-;; 4 - line offset
+Sub matches:
+ 1 - section number (not a number, by the way)
+ 4 - line offset")
 
-(setq rfcinfo-re-subseries "\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)")
+(defconst rfcinfo-re-subseries
+  "\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)"
+  "Regexp matching sub-series docid string.")
 
-(setq rfcinfo-re-docid (concat "\\(\\(RFC\\|rfc\\)? ?-?\\([[:digit:]]+\\)\
-\\(-\\(" rfcinfo-re-loc "\\)\\)?\\)\\|\\(" rfcinfo-re-subseries "\\)"))
+(defconst rfcinfo-re-docid (concat "\\(\\(RFC\\|rfc\\)? ?-?\\([[:digit:]]+\\)\
+\\(-\\(" rfcinfo-re-loc "\\)\\)?\\)\\|\\(" rfcinfo-re-subseries "\\)")
+  "Regexp matching a docid string.
 
+Sub-matches:
+ 1 - complete rfc docid
+ 2 - rfc prefix
+ 3 - rfc number
+ 5 - rfc suffix
+ 6 - rfc suffix section part
+ 9 - rfc suffix line offset part
+ 10 - complete subseries docid
+ 11 - subseries prefix
+ 12 - subseries number")
 
-;(defconst rfcinfo-regexp "\\([[:digit:]]+\\) -"
-;  "Regexp to locate an RFC number in *RFC info* buffer.")
+(defconst rfcinfo-regexp
+  (concat "\\(\\([[:digit:]]+\\)\\|\\(" rfcinfo-re-subseries "\\)\\) -")
+  "Regexp used in *rfc-info* buffer.
 
-(defconst rfcinfo-regexp (concat "\\(\\([[:digit:]]+\\)\\|\\(" rfcinfo-re-subseries "\\)\\) -"))
-;;\\(\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)\\)\\) -")
-
-
-;; (setq rfcinfo-re-docid (concat "\\(\\(RFC\\|rfc\\)? ?-?\\([[:digit:]]+\\)\
-;; \\(-\\(" rfcinfo-re-loc "\\)\\)?\\)\
-;; \\|\
-;; \\(\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)\\)"))
-
-;; sub-matches for rfcinfo-re-docid
-;; 1 - complete rfc docid
-;; 2 - rfc prefix
-;; 3 - rfc number
-;; 5 - rfc suffix
-;; 6 - rfc suffix section part
-;; 9 - rfc suffix line offset part
-;; 10 - complete subseries docid
-;; 11 - subseries prefix
-;; 12 - subseries number
+Matches an RFC number of a sub-series docid string.")
 
 (defun rfcinfo-at-point (re p)
   "Match regexp RE at position P.
@@ -333,11 +336,12 @@ matched text."
 	(cons (intern (downcase (match-string 11 s))) (string-to-number (match-string 12 s))))))
 
 (defun rfcinfo-read-docid (msg ask &optional non-local loc)
-  "Get docid at point or prompt for it.
+  "Get docid at point or prompt for it, displaying MSG.
 
-If nothing is found at point, prompt for docid.
-ASK non nil means prompt for docid, proposing docid at point as default.
-LOC non nil means include location part as well."
+If nothing is found at point, use RFC number from buffer name,
+except if NON-LOCAL is nil, else prompt for docid.
+ASK non-nil means prompt for docid, proposing docid at point as
+default.  LOC non-nil means include location part as well."
   (let ((def (or (rfcinfo-docid-at-point)
 		 (and (not non-local) (rfcinfo-buffer-holds-one)))))
     (if (or ask (not def))
@@ -429,12 +433,12 @@ LOC non nil means include location part as well."
 HEADER."
   (if (null l) ""
     (rfcinfo-foldl (lambda (acc n)
-		     (cond 
+		     (cond
 		      ((numberp n)
 		       (let* ((rfc (aref rfcinfo-status n))
 			      (tit (cadr (assoc 'title rfc)))
 			      (ia  (cadr (assoc 'is-also rfc))))
-			 (concat acc "\n" 
+			 (concat acc "\n"
 				 (format "%6s %4d - %s"
 					 (if ia (rfcinfo-print-docid ia) "    ") n tit))))
 		       ((eq 'std (car n))
@@ -455,6 +459,8 @@ HEADER."
    ((numberp (car id)) (rfcinfo-get-rfc-status (car id)))
    ;; a STD
    ((eq 'std (car id)) (rfcinfo-get-std-status (cdr id)))
+   ;; a list
+   ((eq 'list (car id)) (rfcinfo-list-nbs (cadr id) (cddr id)))
    ;; other: BCP or FYI
    (t (let ((nb (rfcinfo-lookup-subseries id)))
 	(if nb
@@ -539,7 +545,7 @@ HEADER."
     (goto-char (point-max))
     (if (null (search-backward-regexp re nil t))
 	(progn (goto-char p)
-	       (error "Couldn't find section %s." (car loc)))
+	       (error "Couldn't find section %s" (car loc)))
       (if (cdr loc) (forward-line (cdr loc)))
       (recenter 0))))
 
@@ -581,7 +587,6 @@ HEADER."
     (define-key map [mouse-2] 'rfcinfo-click)
     (define-key map "e"      'rfcinfo-errata)
     (define-key map "b"      'rfcinfo-bortzmeyer)
-    (define-key map "s"      'rfcinfo-search-title)
     (define-key map "?"      'describe-mode)
     map)
   "Keymap for `rfcinfo-mode'.
@@ -725,12 +730,7 @@ orange=experimental, purple=historic.
 		    (setq l (cons (cons 'std i) l)))
 		(setq i (1- i)))
 	      l)))
-    (with-temp-buffer
-      (insert
-       (format "List of STDs\n%s"
-	       (rfcinfo-deps l "")))
-      (rfcinfo-set-properties)
-      (buffer-substring (point-min) (point-max)))))
+    (rfcinfo-list-nbs "List of STDs" l)))
 
 ;; ZZZ sorted by rfc number
 (defun rfcinfo-list-sub (sub)
@@ -743,12 +743,17 @@ orange=experimental, purple=historic.
 		   (setq l (cons i l)))
 	       (setq i (1- i))))
 	   l)))
-    (with-temp-buffer
-      (insert
-       (format "List of %s sub-series\n%s" (upcase (symbol-name sub))
-	       (rfcinfo-deps l "")))
-      (rfcinfo-set-properties)
-      (buffer-substring (point-min) (point-max)))))
+    (rfcinfo-list-nbs 
+     (format "List of %s sub-series" (upcase (symbol-name sub)))
+     l)))
+
+(defun rfcinfo-list-nbs (title nbs)
+  (with-temp-buffer
+    (insert
+     (format "%s\n%s" title
+	     (rfcinfo-deps nbs "")))
+    (rfcinfo-set-properties)
+    (buffer-substring (point-min) (point-max))))
 
 ;;; Searching the DB
 
@@ -764,31 +769,10 @@ orange=experimental, purple=historic.
   (with-temp-buffer
     (insert
      (let ((l (rfcinfo-search-any 'title word)))
-       (format "Search results for \"%s\" in title (%i entries)\n%s" 
+       (format "Search results for \"%s\" in title (%i entries)\n%s"
 	       word (length l) (rfcinfo-deps l ""))))
     (rfcinfo-set-properties)
     (buffer-substring (point-min) (point-max))))
-    
-(defun rfcinfo-search-title (word)
-  ""
-  (interactive "MSearch titles for word: ")
-  (get-buffer-create rfcinfo-buffer)
-  (let ((st (rfcinfo-search-title-get word)))
-    (if (window-live-p rfcinfo-window) ()
-      (setq rfcinfo-window (split-window-vertically)))
-    (select-window rfcinfo-window)
-    (set-buffer rfcinfo-buffer)
-    (if rfcinfo-first-done (buffer-enable-undo)
-      (buffer-disable-undo)
-      (setq rfcinfo-first-done t))
-    (let ((inhibit-read-only t))
-      (erase-buffer)
-      (insert st)
-      (goto-char (point-min))
-      (forward-word))
-    (rfcinfo-mode)
-    (set-window-buffer rfcinfo-window rfcinfo-buffer)
-    (fit-window-to-buffer)))
 
 ;;; Importing, loading, and saving
 
@@ -1047,7 +1031,7 @@ saved to kill ring."
 	(message "%s (saved to kill ring)" ref)))))
 
 (defun rfcinfo-goto-ref (ref)
-  "same as rfcinfo-do-goto, using rfcview-local-heading-alist"
+  "Same as rfcinfo-do-goto, using rfcview-local-heading-alist."
   (interactive)
   (let ((sec (cadddr ref))
 	(res)

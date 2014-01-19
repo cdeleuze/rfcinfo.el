@@ -1,9 +1,6 @@
 set-properties, string-to-number pb si STD10 (rfc772)
 STD10 n'est pas barré
 
-build-ref do not use rfcview, search for section header with re-loc
--> re-sec, re-loc
-
 'I' in *rfcinfo* -> close window
 
 allow going forward in history -> which key ?
@@ -57,16 +54,24 @@ no abstract: rfc1034 ...xml file provides one...
 xml file has some
 
 ** search keywords
-
 ** show recursive dependencies
-** others
+** generate graph for graphviz
 
 generate map (viz) and display it in browser
 display map in emacs?
 possible control back from browser to emacs?
  -> click on rfc on map -> display info in emacs...
 
-diff status (when open)/summary?
+** 3-lines status: show numbers of obsolating/updating rfcs?
+** user annotations
+  (related rfcs, free text...)
+  alist, integrated in vector during import (or when load-ing?)
+** user lists
+save named lists of rfcs
+edit list (add/remove/change order)
+
+** others
+
 sb-rfcview.el ?
 provide a menu ?
 also use w3m to download?
@@ -74,63 +79,122 @@ unfold/fold updby/obsoby trees
 ?n show next rfc...
 SPC/DEL for scroll forward/backward ?
 debian package doc-rfc (see rfcview)
-user annotations (related rfcs, free text...)
-  alist, integrated in vector during import (or when load-ing?)
+
+
 set-window-dedicated-p ?
 customize faces
 cache dir should be shared ?
 look at ffap ?
 faces for tty
 
-build sec with +l from point
-  -> based on rfcview headings
-
-how to handle rfcview optional dependency?
- -> build-ref only (easily) callable from rfcview-mode
-
-
-refs and secs, use rfcview header detection
-;;
-1. correct them to not miss any (nor catch other things)
-2. allow absence of final dot
-3. 
-
-search selected if non number in C-c r?
-
-display new RFCs when refreshing?
-
 * current problems
-
-does not update '+' (local availability status) when downloaded
-
-function deps
-
-sets mark two times while loading?
-
-download part should go in rfcview?
-
-clean up xml import code
+** does not update '+' (local availability status) when downloaded
+** sets mark two times while loading?
+** download part should go in rfcview?
+** clean up xml import code
 +l in ref counts visible lines in rfcview mode...
 => no?
 
-errata for unknown, browser displays whole list of errata
-
-errata should read from minibuffer if not found at point
+** errata for unknown, browser displays whole list of errata
+** errata should read from minibuffer if not found at point
        should use current rfc from rfcview! (or use I, e ?)
   if no arg && rfcinfo-mode, use this one
   if arg && rfcinfo-mode, ask
   if no arg && no rfcinfo-mode, use point, ask if none
   if arg && no rfcinfo-mode, use point, ask with default
 
-rfc1035-5 currently fails (item number 5 found)
+** rfc1035-5 currently fails (item number 5 found)
 same rfc2205-1
   -> probably only applies to level 1 headings
 
-scroll useless (except if window too small)
+** scroll useless (except if window too small)
+** locs
 
-3-lines status: show numbers of obsolating/updating rfcs?
+build sec with +l from point
+  -> based on rfcview headings
 
-* BCP, FIY, STD-lookup
+locs, use rfcview header detection
+;;
+1. correct them to not miss any (nor catch other things)
+2. allow absence of final dot
+3. 
+
+build-ref do not use rfcview, search for section header with re-loc
+-> re-sec, re-loc
+
+** how to handle rfcview optional dependency?
+ -> build-ref only (easily) callable from rfcview-mode
+
+* rfcview problems
+
+rfcview in debian emacs-goodies-el (but 0.12 instead of 0.13)
+
+bug rfc1035-3.4.2, 25 (SMTP) (section 3.4.2, taken as heading)
+ -> check final dot?
+ -> check previous empty line?
+
+misses headings not a column 0 (eg rfc2205)
+ -> allow blanks for headings at level 2 and more?
+
+misses toc in rfc2206 (no end dot in toc entries)
+
+headings menu poorly cut when large
+(do it by sections/subsections?)
+
+does not detect multiple references (2205 -> [RSVP93, RFC 1633])
+rfcview-use-view-mode-p -flag?
+
+in speedbar, sections are in reverse order? (rfc1035-3)
+  speedbar does its own heading parsing?
+  or uses imenu???
+
+see shrink-window-if-larger-than-buffer?
+
+init code rfcinfo-load should rather be an autoload or something like that?
+
+* rfcview toadds
+
+next/previous heading navigation ala outline or org-mode
+=> outline-minor-mode?
+   needs setting outline-regexp
+
+* diff
+
+diff status (when open)/summary?
+
+show what has changed since last update
+possibly remember changes?
+
+display new RFCs when refreshing?
+display as list as in sub-series and search
+diff ? rfcinfo.db has 0 lines!
+
+* done
+
+function deps
+
+search selected if non number in C-c r
+
+rfcinfo-show : STD all stds, etc
+               words : search title
+
+pb std34 (car aucun contenu, rfcinfo-do-show cherche "-" = après le
+numéro du rfc, mais pas le cas pour un std
+=> changé ~~ en -~ + déplacé save-excursion dans rfcinfo-follow
+
+dep STD10 (ex 772), le 10 est barré
+(car rfc10 est obsolète et rfcinfo-set-properties utilise
+rfcinfo-regexp et string-to-number)
+(+ STD10 est obsolète par 2821, devrait barrer STD10 complet ?)
+revoir def de rfcinfo-regexp
+
+STD in a dependency should
+  - display title
+  - be forwardable
+but, this only occurs three times: rfc772, 780, 788...
+also 2821 !
+
+** BCP, FIY, STD-lookup
 
 all have entries in XML file
 (but sometimes empty)
@@ -176,7 +240,7 @@ all are also referenced from the <rfc-entry>
 an rfc can is-also at most one (std or fiy or bcp)
 an std/fiy/bcp can is-also several (rfcs)
 
-** so,
+*** so,
 we need to add is-also info in each rfc-entry
 
 then do we:
@@ -190,70 +254,14 @@ STD0010 & 39 are historic
 we also need to display std (and other) info : list of mapped rfcs
 (new kind of dependency - is-also/contains)
 
-** how are STD dependency cross-references currently handled?
+*** how are STD dependency cross-references currently handled?
 they are ignored!
 see in rfcinfo-fold-all
 
 are there other than rfc2821?
 
-** NIC, IEN, RTR (external references)
+*** NIC, IEN, RTR (external references)
 
-* rfcview problems
-
-rfcview in debian emacs-goodies-el (but 0.12 instead of 0.13)
-
-bug rfc1035-3.4.2, 25 (SMTP) (section 3.4.2, taken as heading)
- -> check final dot?
- -> check previous empty line?
-
-misses headings not a column 0 (eg rfc2205)
- -> allow blanks for headings at level 2 and more?
-
-misses toc in rfc2206 (no end dot in toc entries)
-
-headings menu poorly cut when large
-(do it by sections/subsections?)
-
-does not detect multiple references (2205 -> [RSVP93, RFC 1633])
-rfcview-use-view-mode-p -flag?
-
-in speedbar, sections are in reverse order? (rfc1035-3)
-  speedbar does its own heading parsing?
-  or uses imenu???
-
-see shrink-window-if-larger-than-buffer?
-
-init code rfcinfo-load should rather be an autoload or something like that?
-
-* rfcview toadds
-
-next/previous heading navigation ala outline or org-mode
-
-
-* diff
-show what has changed since last update
-possibly remember changes?
-
-* done
-
-rfcinfo-show : STD all stds, etc
-               words : search title
-
-pb std34 (car aucun contenu, rfcinfo-do-show cherche "-" = après le
-numéro du rfc, mais pas le cas pour un std
-=> changé ~~ en -~ + déplacé save-excursion dans rfcinfo-follow
-
-dep STD10 (ex 772), le 10 est barré
-(car rfc10 est obsolète et rfcinfo-set-properties utilise
-rfcinfo-regexp et string-to-number)
-(+ STD10 est obsolète par 2821, devrait barrer STD10 complet ?)
-revoir def de rfcinfo-regexp
-
-STD in a dependency should
-  - display title
-  - be forwardable
-but, this only occurs three times: rfc772, 780, 788...
-also 2821 !
 
 * future
 
