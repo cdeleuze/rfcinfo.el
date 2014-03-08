@@ -25,7 +25,7 @@ make ref (doc/integration)
 emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> -f rfcinfo-show
 emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> --eval "(rfcinfo-do-show 1034 nil)"
 
-emacs -q --no-site-file -T rfcinfo -nbc -l Src/rfcinfo/rfcinfo.el --eval "(progn (tool-bar-mode 0) (rfcinfo-search-title \"PPP\"))"
+emacs -q --no-site-file -T rfcinfo -nbc -l Src/rfcinfo/rfcinfo.el --eval "(progn (tool-bar-mode 0) (rfcinfo-do-show \"RSVP\" nil))"
 
 don't split window in this case?
 
@@ -63,12 +63,26 @@ possible control back from browser to emacs?
  -> click on rfc on map -> display info in emacs...
 
 ** 3-lines status: show numbers of obsolating/updating rfcs?
+** diff
+show what has changed since last update
+additionnaly to new RFCs, show status changes
+
+possibly remember such changes?
+
 ** user annotations
   (related rfcs, free text...)
   alist, integrated in vector during import (or when load-ing?)
 ** user lists
 save named lists of rfcs
 edit list (add/remove/change order)
+
+** save list of new RFCs
+   propose saving as 'New RFCs <date>'
+
+alist string to number list
+save
+load (propose completion)
+forget?
 
 ** others
 
@@ -82,7 +96,6 @@ debian package doc-rfc (see rfcview)
 
 
 set-window-dedicated-p ?
-customize faces
 cache dir should be shared ?
 look at ffap ?
 faces for tty
@@ -90,7 +103,7 @@ faces for tty
 * current problems
 ** does not update '+' (local availability status) when downloaded
 ** sets mark two times while loading?
-** download part should go in rfcview?
+** RFC download part should go in rfcview?
 ** clean up xml import code
 +l in ref counts visible lines in rfcview mode...
 => no?
@@ -125,6 +138,11 @@ build-ref do not use rfcview, search for section header with re-loc
 ** how to handle rfcview optional dependency?
  -> build-ref only (easily) callable from rfcview-mode
 
+** performance
+parsing the xml file can be very long (more than 1 min) on a not so
+recent machine...
+(4 min on 1Ghz 256MB)
+
 * rfcview problems
 
 rfcview in debian emacs-goodies-el (but 0.12 instead of 0.13)
@@ -158,18 +176,11 @@ next/previous heading navigation ala outline or org-mode
 => outline-minor-mode?
    needs setting outline-regexp
 
-* diff
-
-diff status (when open)/summary?
-
-show what has changed since last update
-possibly remember changes?
+* done
 
 display new RFCs when refreshing?
 display as list as in sub-series and search
 diff ? rfcinfo.db has 0 lines!
-
-* done
 
 function deps
 
@@ -265,7 +276,7 @@ are there other than rfc2821?
 
 * future
 
-*FIXED* rfcinfo-fold-all number extracting assumes string format is RFCxxxx
-=> will break when number 9999 is exceeded!
+** DONE rfcinfo-fold-all number extracting assumes string format is RFCxxxx
+   => will break when number 9999 is exceeded!
 
-evolve into a dired-like interface?
+** evolve into a dired-like interface?

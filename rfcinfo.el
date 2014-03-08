@@ -776,6 +776,40 @@ orange=experimental, purple=historic.
 
 ;;; Importing, loading, and saving
 
+(defun rfcinfo-known-rfcs ()
+  (let ((nb (1- (length rfcinfo-status)))
+	r)
+    (while (> nb 0)
+      (when (aref rfcinfo-status nb)
+	(setq r (cons nb r)))
+      (setq nb (1- nb)))
+    r))
+
+(defun rfcinfo-diff-list (l1 l2)
+  "Return pair L1-L2, L2-L1, L1 and L2 being sorted lists."
+  (let ((r1)  ;; l1 - l2
+	(r2)  ;; l2 - l1
+	(cont t)
+	)
+    (while (or (consp l1) (consp l2))
+      (cond
+       ((null l1) (setq r2 (append (nreverse l2) r2) l2 nil))
+       
+       ((null l2) (setq r1 (append (nreverse l1) r1) l1 nil))
+
+       ((equal (car l1) (car l2))
+	(setq l1 (cdr l1)
+	      l2 (cdr l2)))
+
+       ((< (car l1) (car l2))
+	(setq r1 (cons (car l1) r1)
+	      l1 (cdr l1)))
+	      
+       ((> (car l1) (car l2))
+	(setq r2 (cons (car l2) r2)
+	      l2 (cdr l2)))))
+    (list (nreverse r1) (nreverse r2))))
+
 ;; return list of elements with given tag
 (defun rfcinfo-filter-tag (tag l)
   (rfcinfo-filter (lambda (e) (eq (car-safe e) tag)) l))
@@ -921,7 +955,8 @@ Return nil if none"
       (setq rfcinfo-std-status v))
   
     ;; now import RFC info
-    (let* (;; all rfc-entry elements
+    (let* ((old (rfcinfo-known-rfcs))
+	   ;; all rfc-entry elements
 	   (full (rfcinfo-filter-tag 'rfc-entry content))
 
 	   ;; filter relevant sub elements
@@ -942,7 +977,16 @@ Return nil if none"
       (with-temp-file rfcinfo-dbfile
 	(insert (with-output-to-string (prin1 rfcinfo-status)))
 	(insert (with-output-to-string (prin1 rfcinfo-std-status))))
-      (message (format "Done (last rfc %i)." (1- max))))))
+      (let ((news (car (rfcinfo-diff-list (rfcinfo-known-rfcs) old))))
+	(if news
+	    (progn (rfcinfo-do-show 
+		    (cons 'list
+			  (cons 
+			   (format "Just imported RFCs (%i entries)" (length news))
+			   news))
+		    nil)
+		   (message "Done.  New RFCs."))
+	  (message (format "Done.  No new RFCs." )))))))
 
 (defun rfcinfo-refresh ()
   "Download rfc-index.xml file and import it.
