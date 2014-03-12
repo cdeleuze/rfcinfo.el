@@ -814,11 +814,21 @@ orange=experimental, purple=historic.
 
 (defun rfcinfo-changes-string (l)
   (with-temp-buffer
-    (insert "RFCs having changed status\n\n")
+    (insert (format "RFCs having changed status (%i)\n\n" (length l)))
     (mapc (lambda (e) (insert (format "%6s %4d - %s -> %s\n" "" (car e) (cadr e) (caddr e)))) l)
     (insert "\n")
     (rfcinfo-set-properties)
     (buffer-substring (point-min) (point-max))))
+
+(defun rfcinfo-affected (news)
+  "Compute lists of updated and obsolated from list of new RFCs."
+  (let (upd obs)
+    (mapc (lambda (n) (let ((rfc (aref rfcinfo-status n)))
+			(mapc (lambda (n) (add-to-list 'upd n))
+			      (cdr (assoc 'updates rfc)))
+			(mapc (lambda (n) (add-to-list 'obs n))
+			      (cdr (assoc 'obsoletes rfc))))) news)
+    (cons upd obs)))
 
 ;; return list of elements with given tag
 (defun rfcinfo-filter-tag (tag l)
@@ -988,15 +998,29 @@ Return nil if none"
 	(insert (with-output-to-string (prin1 rfcinfo-status)))
 	(insert (with-output-to-string (prin1 rfcinfo-std-status))))
 
+      ;; prepare import summary
       (let* ((diff (rfcinfo-changes old (rfcinfo-known-rfcs)))
 	     (news (car diff))
 	     (changes (cdr diff))
+	     (affected (rfcinfo-affected news))
 	     (stch (if changes (rfcinfo-changes-string changes) ""))
 	     (stnw (if news
-		       (rfcinfo-list-nbs (format "New RFCs (%i entries)" (length news))
-					 news) "")))
+		       (rfcinfo-list-nbs (format "New RFCs (%i)" (length news))
+					 news) 
+		     ""))
+	     (stup (if (car affected)
+		       (rfcinfo-list-nbs (format "\n\nNewly updated RFCs (%i)"
+						 (length (car affected)))
+					 (car affected))
+		     ""))
+	     (stob (if (cdr affected)
+		       (rfcinfo-list-nbs (format "\n\nNewly obsolated RFCs (%i)"
+						 (length (cdr affected)))
+					 (cdr affected))
+		     "")))
+	
 	(if (or news changes) (progn
-				(rfcinfo-display (concat stch stnw) nil)
+				(rfcinfo-display (concat stch stnw stob stup) nil)
 				(message "Done."))
 	(message "Done.  No new or changed RFCs." ))))))
 

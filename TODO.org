@@ -11,6 +11,11 @@ cleaner way to define keymap?
 	( "1" . rfcinfo-bortzmeyer)))
 
 * bugs
+** TODO BCP
+doc and code assumes a BCP maps to only one
+false: eg bcp41
+then, what title to use?
+
 ** TODO errata
 on 1034: "RFC STD13 has no errata"
 
@@ -79,7 +84,8 @@ possibly remember such changes?
 
 *** DONE newly published RFC
 *** DONE status changes
-*** TODO updated/obsolated changes
+*** DONE updated/obsolated changes
+from list of new RFCs, build two lists
 
 ** user annotations
   (related rfcs, free text...)
