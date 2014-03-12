@@ -10,6 +10,16 @@ cleaner way to define keymap?
       '(( "0" . rfcinfo-goto)
 	( "1" . rfcinfo-bortzmeyer)))
 
+* bugs
+** TODO errata
+on 1034: "RFC STD13 has no errata"
+
+** TODO when title search returns 0 entries
+  let: Search failed: " -"
+
+** TODO rfcinfo-click
+calls unknown function rfcinfo-status
+
 * priority
 
 clean-up non-local arg in read-docid
@@ -65,9 +75,11 @@ possible control back from browser to emacs?
 ** 3-lines status: show numbers of obsolating/updating rfcs?
 ** diff
 show what has changed since last update
-additionnaly to new RFCs, show status changes
-
 possibly remember such changes?
+
+*** DONE newly published RFC
+*** DONE status changes
+*** TODO updated/obsolated changes
 
 ** user annotations
   (related rfcs, free text...)

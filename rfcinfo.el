@@ -409,24 +409,27 @@ default.  LOC non-nil means include location part as well."
 (defun rfcinfo-do-show (id echo)
   ""
   (when id
-    (get-buffer-create rfcinfo-buffer)
-    (let ((st (rfcinfo-get-status id)))
-      (if echo (message (rfcinfo-string-n-lines 3 st))
-	(if (window-live-p rfcinfo-window) ()
-	  (setq rfcinfo-window (split-window-vertically)))
-	(select-window rfcinfo-window)
-	(set-buffer rfcinfo-buffer)
-	(if rfcinfo-first-done (buffer-enable-undo)
-	  (buffer-disable-undo)
-	  (setq rfcinfo-first-done t))
-	(let ((inhibit-read-only t))
-	  (erase-buffer)
-	  (insert st)
-	  (goto-char (point-min))
-	  (search-forward " -") (backward-char 2))
-	(rfcinfo-mode)
-	(set-window-buffer rfcinfo-window rfcinfo-buffer)
-	(fit-window-to-buffer)))))
+    (rfcinfo-display (rfcinfo-get-status id) echo)))
+
+(defun rfcinfo-display (st echo)
+  ""
+  (get-buffer-create rfcinfo-buffer)
+  (if echo (message (rfcinfo-string-n-lines 3 st))
+    (if (window-live-p rfcinfo-window) ()
+      (setq rfcinfo-window (split-window-vertically)))
+    (select-window rfcinfo-window)
+    (set-buffer rfcinfo-buffer)
+    (if rfcinfo-first-done (buffer-enable-undo)
+      (buffer-disable-undo)
+      (setq rfcinfo-first-done t))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert st)
+      (goto-char (point-min))
+      (search-forward " -") (backward-char 2))
+    (rfcinfo-mode)
+    (set-window-buffer rfcinfo-window rfcinfo-buffer)
+    (fit-window-to-buffer)))
 
 (defun rfcinfo-deps (l header)
   "Build the string of dependencies in list L, starting with
@@ -459,8 +462,6 @@ HEADER."
    ((numberp (car id)) (rfcinfo-get-rfc-status (car id)))
    ;; a STD
    ((eq 'std (car id)) (rfcinfo-get-std-status (cdr id)))
-   ;; a list
-   ((eq 'list (car id)) (rfcinfo-list-nbs (cadr id) (cddr id)))
    ;; other: BCP or FYI
    (t (let ((nb (rfcinfo-lookup-subseries id)))
 	(if nb
@@ -780,35 +781,44 @@ orange=experimental, purple=historic.
   (let ((nb (1- (length rfcinfo-status)))
 	r)
     (while (> nb 0)
-      (when (aref rfcinfo-status nb)
-	(setq r (cons nb r)))
+      (let ((rfc (aref rfcinfo-status nb)))
+	(when rfc
+	  (setq r (cons (cons nb (cadr (assoc 'status rfc))) r))))
       (setq nb (1- nb)))
     r))
 
-(defun rfcinfo-diff-list (l1 l2)
-  "Return pair L1-L2, L2-L1, L1 and L2 being sorted lists."
-  (let ((r1)  ;; l1 - l2
-	(r2)  ;; l2 - l1
-	(cont t)
-	)
-    (while (or (consp l1) (consp l2))
-      (cond
-       ((null l1) (setq r2 (append (nreverse l2) r2) l2 nil))
-       
-       ((null l2) (setq r1 (append (nreverse l1) r1) l1 nil))
+(defun rfcinfo-changes (l1 l2)
+  "Return cons: new (l2-l1), changes (nb l1status l2status)."
+  (let ((new)
+	(changes))
+    (while (consp l2)
+      (cond                            ; new ones
+       ((null l1) (setq new (append (mapcar 'car (nreverse l2)) new) l2 nil))
 
-       ((equal (car l1) (car l2))
+       ((equal (car l1) (car l2))      ; no change
 	(setq l1 (cdr l1)
 	      l2 (cdr l2)))
 
-       ((< (car l1) (car l2))
-	(setq r1 (cons (car l1) r1)
-	      l1 (cdr l1)))
-	      
-       ((> (car l1) (car l2))
-	(setq r2 (cons (car l2) r2)
-	      l2 (cdr l2)))))
-    (list (nreverse r1) (nreverse r2))))
+       ((equal (caar l1) (caar l2))    ; status change
+	(setq changes (cons (list (caar l1) (cdar l1) (cdar l2)) changes)
+	      l1 (cdr l1)
+	      l2 (cdr l2)))
+
+       ((> (caar l1) (caar l2))        ; new one
+	(setq new (cons (caar l2) new)
+	      l2 (cdr l2)))
+
+       ((< (caar l1) (caar l2))        ; should not happen!
+	(setq l1 (cdr l1)))))
+    (cons (nreverse new) (nreverse changes))))
+
+(defun rfcinfo-changes-string (l)
+  (with-temp-buffer
+    (insert "RFCs having changed status\n\n")
+    (mapc (lambda (e) (insert (format "%6s %4d - %s -> %s\n" "" (car e) (cadr e) (caddr e)))) l)
+    (insert "\n")
+    (rfcinfo-set-properties)
+    (buffer-substring (point-min) (point-max))))
 
 ;; return list of elements with given tag
 (defun rfcinfo-filter-tag (tag l)
@@ -977,16 +987,18 @@ Return nil if none"
       (with-temp-file rfcinfo-dbfile
 	(insert (with-output-to-string (prin1 rfcinfo-status)))
 	(insert (with-output-to-string (prin1 rfcinfo-std-status))))
-      (let ((news (car (rfcinfo-diff-list (rfcinfo-known-rfcs) old))))
-	(if news
-	    (progn (rfcinfo-do-show 
-		    (cons 'list
-			  (cons 
-			   (format "Just imported RFCs (%i entries)" (length news))
-			   news))
-		    nil)
-		   (message "Done.  New RFCs."))
-	  (message (format "Done.  No new RFCs." )))))))
+
+      (let* ((diff (rfcinfo-changes old (rfcinfo-known-rfcs)))
+	     (news (car diff))
+	     (changes (cdr diff))
+	     (stch (if changes (rfcinfo-changes-string changes) ""))
+	     (stnw (if news
+		       (rfcinfo-list-nbs (format "New RFCs (%i entries)" (length news))
+					 news) "")))
+	(if (or news changes) (progn
+				(rfcinfo-display (concat stch stnw) nil)
+				(message "Done."))
+	(message "Done.  No new or changed RFCs." ))))))
 
 (defun rfcinfo-refresh ()
   "Download rfc-index.xml file and import it.
