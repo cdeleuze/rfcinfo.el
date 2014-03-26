@@ -16,11 +16,15 @@ doc and code assumes a BCP maps to only one
 false: eg bcp41
 then, what title to use?
 
-** TODO errata
+** DONE errata
 on 1034: "RFC STD13 has no errata"
+on msg 'RFC xxxx has no errata' xxx has text properties
+** TODO rfcinfo-mode
+raises error if not in proper buffer, but the mode is set anyway!
+also see 'saving' item
 
 ** TODO when title search returns 0 entries
-  let: Search failed: " -"
+  let: Search failed: "~"
 
 ** TODO rfcinfo-click
 calls unknown function rfcinfo-status
@@ -50,7 +54,28 @@ pb: caddr not defined!
 => require 'cl
 
 * convenience
+** striked 8/0
+not well readable, see eg rfc2481
+
+** TODO tab/S-tab
+to navigate on blocks
+
+** DONE when displaying STD
+set point on first rfc
+... in rfcinfo-display?
+ -> do not put - after std docid!
+but handle possible search failure (for empty std, eg STD1)
+
 ** propose to refresh if apparently run for the first time
+include info in the tutorial?!
+
+rfcinfo-refresh should first test if rfcinfo-index-xml-file dir part
+exists
+=> redéfinir comme utilisant rfcinfo-cache-dir (idem pour rfcinfo-dbfile)
+
+if rfcdir does not exist, at file loading (eg from autoload)
+rfcinfo-load: condition-case: Can't load from `rfcinfo-dbfile'
+
 ** create cachedir if does not exist
   tested by rfcinfo-refresh only?
   + also there xml and db files ?
@@ -87,6 +112,7 @@ possibly remember such changes?
 *** DONE updated/obsolated changes
 from list of new RFCs, build two lists
 
+*** TODO sub-series change?
 ** user annotations
   (related rfcs, free text...)
   alist, integrated in vector during import (or when load-ing?)
@@ -94,9 +120,15 @@ from list of new RFCs, build two lists
 save named lists of rfcs
 edit list (add/remove/change order)
 
-** save list of new RFCs
-   propose saving as 'New RFCs <date>'
+** multiple buffer
+currently only one possible
+usage of several?
 
+** saving buffer
+
+simply save as text, need import text as rfcinfo buffer
+
+for import summary, propose saving as 'New RFCs <date>'
 alist string to number list
 save
 load (propose completion)

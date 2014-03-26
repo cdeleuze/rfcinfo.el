@@ -426,7 +426,10 @@ default.  LOC non-nil means include location part as well."
       (erase-buffer)
       (insert st)
       (goto-char (point-min))
-      (search-forward " -") (backward-char 2))
+      ;; set point on the first to-follow thing
+      (if (search-forward " -" nil t) (backward-char 2)
+	;; for empty STD, nothing to follow, go on the ~
+	(search-forward "~") (backward-char 1)))
     (rfcinfo-mode)
     (set-window-buffer rfcinfo-window rfcinfo-buffer)
     (fit-window-to-buffer)))
@@ -515,7 +518,7 @@ HEADER."
 	  (if (null std) (message (format "%d: unknown STD" nb))
 	    (let ((title   (cadr (assoc 'title std)))
 		  (isalso  (cdr  (assoc 'is-also std))))
-	      (insert (format "STD%d -~ %s\n%s"
+	      (insert (format "STD%d ~ %s\n%s"
 			      nb
 			      title
 			      (rfcinfo-deps isalso "\ncontents:"))))
@@ -707,7 +710,8 @@ orange=experimental, purple=historic.
 		(read-string "Errata for RFC: ")
 	      (save-excursion
 		(goto-char 0)
-		(thing-at-point 'word)))))
+		(search-forward-regexp rfcinfo-regexp)
+		(buffer-substring-no-properties (match-beginning 1) (match-end 1))))))
     (if (assoc 'errata (aref rfcinfo-status (string-to-number nb)))
 	(browse-url (concat rfcinfo-errata-url-prefix nb))
       (message (format "RFC %s has no errata" nb)))))
@@ -767,13 +771,10 @@ orange=experimental, purple=historic.
 ;; case-fold-search
 
 (defun rfcinfo-search-title-get (word)
-  (with-temp-buffer
-    (insert
-     (let ((l (rfcinfo-search-any 'title word)))
-       (format "Search results for \"%s\" in title (%i entries)\n%s"
-	       word (length l) (rfcinfo-deps l ""))))
-    (rfcinfo-set-properties)
-    (buffer-substring (point-min) (point-max))))
+  (let ((l (rfcinfo-search-any 'title word)))
+    (rfcinfo-list-nbs
+     (format "Search results for \"%s\" in title (%i)" word (length l))
+     l)))
 
 ;;; Importing, loading, and saving
 
