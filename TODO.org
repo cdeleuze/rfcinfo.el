@@ -54,10 +54,14 @@ pb: caddr not defined!
 => require 'cl
 
 * convenience
+** test if remote xml file is newer
+(nth 5 (file-attributes ...))
+
+** batch refresh
 ** striked 8/0
 not well readable, see eg rfc2481
 
-** TODO tab/S-tab
+** DONE tab/S-tab
 to navigate on blocks
 
 ** DONE when displaying STD

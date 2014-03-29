@@ -581,6 +581,8 @@ HEADER."
   (let ((map (make-sparse-keymap)))
     (define-key map [down]   'rfcinfo-next)
     (define-key map [up]     'rfcinfo-prev)
+    (define-key map [tab]    'rfcinfo-nextsection)
+    (define-key map [backtab]     'rfcinfo-prevsection)
     (define-key map " "      'rfcinfo-scroll)
     (define-key map [right]  'rfcinfo-follow)
     (define-key map [return] 'rfcinfo-viewfile)
@@ -624,19 +626,32 @@ orange=experimental, purple=historic.
 	   (if rfcinfo-scroll-up (progn (scroll-up) (rfcinfo-next))
 	     (scroll-down) (rfcinfo-prev)))))
 
+(defun ifv (r p)
+  "if with value passing."
+  (if r (funcall p r)))
+
 (defun rfcinfo-prev ()
   "Move cursor to previous dependency."
   (interactive)
-  (backward-word)
-  (search-backward-regexp rfcinfo-regexp nil t)
-  (goto-char (match-end 1)))
+  (ifv (save-excursion
+	  (backward-word)
+	  (and (search-backward-regexp rfcinfo-regexp nil t)
+	       (match-end 1)))
+	'goto-char))
 
 (defun rfcinfo-next ()
   "Move cursor to next dependency."
   (interactive)
-  (forward-word)
-  (search-forward-regexp rfcinfo-regexp nil t)
-  (goto-char (match-end 1)))
+  (ifv (save-excursion
+	  (forward-word)
+	  (and (search-forward-regexp rfcinfo-regexp nil t)
+	       (match-end 1)))
+	'goto-char))
+
+(defun rfcinfo-prevsection ()
+  (interactive)
+  (and (search-backward-regexp "^[^ \n[:digit:]]" nil t 2)
+       (rfcinfo-next)))
 
 (defun rfcinfo-status-echo (ask)
   (interactive "P")
