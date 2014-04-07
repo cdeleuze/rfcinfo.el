@@ -23,11 +23,12 @@ on msg 'RFC xxxx has no errata' xxx has text properties
 raises error if not in proper buffer, but the mode is set anyway!
 also see 'saving' item
 
-** TODO when title search returns 0 entries
+** DONE when title search returns 0 entries
   let: Search failed: "~"
 
-** TODO rfcinfo-click
+** DONE rfcinfo-click
 calls unknown function rfcinfo-status
+=> FIXed to rfcinfo-show
 
 * priority
 

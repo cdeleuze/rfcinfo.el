@@ -126,7 +126,7 @@
 
 ;; The above three functions read their argument from the mini-buffer.
 ;; If point is on a possible argument, this is directly used, unless a
-;; prefix argument is given: the possible argument at point is
+;; prefix argument is given: the possible argument at point is then
 ;; proposed as default.
 
 
@@ -135,8 +135,8 @@
 
 ;;; Installation
 ;;
-;; copy file rfcinfo.el to some directory and add the following to eg
-;; your .emacs file:
+;; copy this file to some directory and add the following to your
+;; .emacs file:
 
 ;; (add-to-list 'load-path <the chosen directory>)
 ;; (global-set-key "\C-cr" 'rfcinfo-show)
@@ -144,15 +144,15 @@
 ;; 
 ;; (autoload 'rfcinfo-show "rfcinfo" nil t)
 ;; (autoload 'rfcinfo-open "rfcinfo" nil t)
-
+;; (autoload 'rfcinfo-refresh "rfcinfo" nil t)
+;;
+;; Create directory ~/.cache/rfc/ or change the values of the following
+;; variables.
 
 ;;; -----
 
 ;;; Code:
 (require 'cl)
-
-;; Download/View
-;; TODO? http://www.ietf.org/rfc/rfcxxxx.txt ftp://ftp.ripe.net/rfc/rfcxxxx.txt
 
 ;; Global Variables:
 
@@ -176,6 +176,7 @@ access, if `rfcinfo-cache-flag' is non nil.")
 (defvar rfcinfo-dbfile "~/.cache/rfc/rfcinfo.db"
   "Pathname of the file where rfc information will be stored.")
 
+
 (defvar rfcinfo-errata-url-prefix
   "http://www.rfc-editor.org/errata_search.php?rfc="
   "Prefix of the errata URL, for RFCs that have one.")
@@ -187,7 +188,6 @@ access, if `rfcinfo-cache-flag' is non nil.")
 (defconst rfcinfo-buffer "*RFC info*")
 
 (defvar rfcinfo-first-done) ;; -flag ?
-(defvar rfcinfo-scroll-up)
 
 ;;; A few general purpose functions
 
@@ -429,7 +429,7 @@ default.  LOC non-nil means include location part as well."
       ;; set point on the first to-follow thing
       (if (search-forward " -" nil t) (backward-char 2)
 	;; for empty STD, nothing to follow, go on the ~
-	(search-forward "~") (backward-char 1)))
+	(and (search-forward "~" nil t) (backward-char 1))))
     (rfcinfo-mode)
     (set-window-buffer rfcinfo-window rfcinfo-buffer)
     (fit-window-to-buffer)))
@@ -582,8 +582,8 @@ HEADER."
     (define-key map [down]   'rfcinfo-next)
     (define-key map [up]     'rfcinfo-prev)
     (define-key map [tab]    'rfcinfo-nextsection)
-    (define-key map [backtab]     'rfcinfo-prevsection)
-    (define-key map " "      'rfcinfo-scroll)
+    (define-key map [backtab]'rfcinfo-prevsection)
+    (define-key map ">"      'rfcinfo-last)
     (define-key map [right]  'rfcinfo-follow)
     (define-key map [return] 'rfcinfo-viewfile)
     (define-key map [left]   'rfcinfo-back)
@@ -594,6 +594,8 @@ HEADER."
     (define-key map "e"      'rfcinfo-errata)
     (define-key map "b"      'rfcinfo-bortzmeyer)
     (define-key map "?"      'describe-mode)
+    (define-key map " "      'rfcinfo-scroll-up)
+    (define-key map [backspace] 'rfcinfo-scroll-down)
     map)
   "Keymap for `rfcinfo-mode'.
 
@@ -613,18 +615,6 @@ orange=experimental, purple=historic.
   (if (not (string= (buffer-name) rfcinfo-buffer))
       (error "You shouldn't set rfcinfo-mode yourself")
     (setq buffer-read-only t)))
-
-(setq rfcinfo-scroll-up t)
-
-(defun rfcinfo-scroll ()
-  ""
-  (interactive)
-  (condition-case nil
-      (if rfcinfo-scroll-up (progn (scroll-up) (rfcinfo-next))
-	(scroll-down) (rfcinfo-prev))
-    (error (setq rfcinfo-scroll-up (not rfcinfo-scroll-up))
-	   (if rfcinfo-scroll-up (progn (scroll-up) (rfcinfo-next))
-	     (scroll-down) (rfcinfo-prev)))))
 
 (defun ifv (r p)
   "if with value passing."
@@ -652,6 +642,26 @@ orange=experimental, purple=historic.
   (interactive)
   (and (search-backward-regexp "^[^ \n[:digit:]]" nil t 2)
        (rfcinfo-next)))
+
+(defun rfcinfo-nextsection ()
+  (interactive)
+  (and (search-forward-regexp "^[^ \n[:digit:]]" nil t 1)
+       (rfcinfo-next)))
+
+(defun rfcinfo-scroll-up ()
+  (interactive)
+  (scroll-up)
+  (rfcinfo-next))
+
+(defun rfcinfo-scroll-down ()
+  (interactive)
+  (scroll-down)
+  (rfcinfo-next))
+
+(defun rfcinfo-last ()
+  (interactive)
+  (goto-char (point-max))
+  (rfcinfo-prev))
 
 (defun rfcinfo-status-echo (ask)
   (interactive "P")
@@ -739,7 +749,7 @@ orange=experimental, purple=historic.
     (goto-char pos)
     (if (string= (thing-at-point 'word) "Errata")
 	(rfcinfo-errata nil)
-      (rfcinfo-status nil))))
+      (rfcinfo-show nil))))
 
 (defun rfcinfo-list-std ()
   (let* ((max (length rfcinfo-std-status))
