@@ -65,17 +65,69 @@ calls unknown function rfcinfo-status
 
 * possibly to correct
 ** DONE document how change summary is computed
+** TODO newer test
+sometimes download remote xml file, after import concludes there's
+nothing new...  => investigate: save old one to diff them
 
-don't split window in this case?
+=> Ok: RFC newly has errata
+=> Ko: nothing changed in XML file
+=> other possibilities?
 
+sometimes the file is newer but hasn't changed (mdtm changed, diff empty)
 
-pb: caddr not defined!
-    loop
-=> require 'cl
+rfcinfo-load
+rfcinfo: local xml-mdtm (21335 35440) [3 times]
+Opening FTP connection to ftp.ripe.net via proxy-ftp.esisar.inpg.fr...done
+Logging in as user anonymous@ftp.ripe.net...done
+Getting PWD...done
+Trying passive mode...on
+Doing CD...done
+Listing /anonymous@ftp.ripe.net:/rfc/...done
+rfcinfo: remote xml-mdtm (21338 11632)
+Retrieving /anonymous@ftp.ripe.net:/rfc/rfc-index.xml...done
+Using vacuous schema
+Saving file /home/deleuzec/.cache/rfc/rfc-index.xml...
+Wrote /home/deleuzec/.cache/rfc/rfc-index.xml
+Importing RFC info from XML file.  This may take some time...
+Done.  No new or changed RFCs.
+=> diffing file shows no difference
+
+*** running refresh from fresh started emacs
+why printing xml-mdtm 3 times?
+
+For information about GNU Emacs and the GNU system, type C-h C-a.
+View mode: type C-h for help, h for commands, q to quit.
+xml-mdtm (21315 50160) [3 times]
+Opening FTP connection to ftp.ripe.net...done
+Logging in as user anonymous@ftp.ripe.net...done
+Getting PWD...done
+Trying passive mode...on
+Doing CD...done
+Listing /anonymous@ftp.ripe.net:/rfc/...done
+Remote rfc-index.xml hasn't changed. No need to refresh.
+
+when running rfcinfo-show instead, printed only 1 time.
+
+when printing msg for entering rfcinfo-load: rfcinfo-load called one
+time only
+
+rfcinfo-load
+xml-mdtm (21315 50160) [3 times]
+Opening FTP connection to ftp.ripe.net...done
+Logging in as user anonymous@ftp.ripe.net...done
+Getting PWD...done
 
 * convenience
-** test if remote xml file is newer
-(nth 5 (file-attributes ...))
+** DONE test if remote xml file is newer
+get remote mdtm from (nth 5 (file-attributes ...))
+get old mdtm from local db file
+
+rfcinfo-load: load rfcinfo-xml-mdtm as well
+refresh: get remote mdtm if equal abort
+   else set rfcinfo-xml-mdtm, call import
+   import does the saving
+
+mdtm is a list of two 16 bit integers
 
 ** batch refresh
 ** striked 8/0

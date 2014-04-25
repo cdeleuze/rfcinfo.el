@@ -1031,7 +1031,10 @@ Return nil if none"
       (loop for e in rfcs do
 	    (aset v (car e) (cdr e)))
       (setq rfcinfo-status v)
+      ;; save info
+      ;; rfcinfo-xml-mdtm should be set! (from refresh or load)
       (with-temp-file rfcinfo-dbfile
+	(insert (with-output-to-string (prin1 rfcinfo-xml-mdtm)))
 	(insert (with-output-to-string (prin1 rfcinfo-status)))
 	(insert (with-output-to-string (prin1 rfcinfo-std-status))))
 
@@ -1062,20 +1065,30 @@ Return nil if none"
 	(message "Done.  No new or changed RFCs." ))))))
 
 (defun rfcinfo-refresh ()
-  "Download rfc-index.xml file and import it.
+  "Get mdtm for rfc-index.xml file, download and import it if it's newer.
 
 File is downloaded from `rfcinfo-remote-repository'."
   (interactive)
-  (with-temp-buffer
-    (insert-file-contents (concat rfcinfo-remote-repository "rfc-index.xml"))
-    (write-file rfcinfo-index-xml-file))
-  (rfcinfo-import))
+  (let* ((xml-file (concat rfcinfo-remote-repository "rfc-index.xml"))
+	 (mdtm (nth 5 (file-attributes xml-file))))
+    (message "rfcinfo: remote xml-mdtm %s" mdtm)
+    (if (equal mdtm rfcinfo-xml-mdtm)
+	(message "Remote rfc-index.xml hasn't changed. No need to refresh.")
+      (with-temp-buffer
+	(insert-file-contents (concat rfcinfo-remote-repository "rfc-index.xml"))
+	(rename-file rfcinfo-index-xml-file (concat rfcinfo-index-xml-file ".prev"))
+	(write-file rfcinfo-index-xml-file))
+      (setq rfcinfo-xml-mdtm mdtm)
+      (rfcinfo-import))))
 
 (defun rfcinfo-load ()
   (interactive)
+  (message "rfcinfo-load")
   (condition-case nil
       (with-temp-buffer
 	(insert-file-contents rfcinfo-dbfile)
+	(setq rfcinfo-xml-mdtm (read (current-buffer)))
+	(message "rfcinfo: local xml-mdtm %s" rfcinfo-xml-mdtm)
 	(setq rfcinfo-status (read (current-buffer)))
 	(setq rfcinfo-std-status (read (current-buffer))))
     (error (error "Can't load from `rfcinfo-dbfile'"))))
