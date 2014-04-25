@@ -803,7 +803,16 @@ orange=experimental, purple=historic.
 
 ;;; Importing, loading, and saving
 
+;; When importing a new version of `rfcinfo-index-xml-file' we will
+;; display a change summary showing what has changed since last
+;; import.  The summary will display lists of:
+;;   - newly published RFCs
+;;   - RFCs that have changed status
+;;   - RFCs that have become obsolate
+;;   - RFCs that have new updates
+
 (defun rfcinfo-known-rfcs ()
+  "Build a list of (nb . status) for currently known rfcs."
   (let ((nb (1- (length rfcinfo-status)))
 	r)
     (while (> nb 0)
@@ -814,7 +823,8 @@ orange=experimental, purple=historic.
     r))
 
 (defun rfcinfo-changes (l1 l2)
-  "Return cons: new (l2-l1), changes (nb l1status l2status)."
+  "L1 and L2 are (nb . status) lists.  Return cons of news (L2-L1) and
+changes (nb l1status l2status)."
   (let ((new)
 	(changes))
     (while (consp l2)
@@ -839,6 +849,7 @@ orange=experimental, purple=historic.
     (cons (nreverse new) (nreverse changes))))
 
 (defun rfcinfo-changes-string (l)
+  "Return a string representing L, which contains (nb oldstatus newstatus)."
   (with-temp-buffer
     (insert (format "RFCs having changed status (%i)\n\n" (length l)))
     (mapc (lambda (e) (insert (format "%6s %4d - %s -> %s\n" "" (car e) (cadr e) (caddr e)))) l)

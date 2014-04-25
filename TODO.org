@@ -10,10 +10,43 @@ cleaner way to define keymap?
       '(( "0" . rfcinfo-goto)
 	( "1" . rfcinfo-bortzmeyer)))
 
+use with-temp-message?
+
+* irfc
+
+look at irfc (possible replacement for rfcview)
+http://www.emacswiki.org/emacs/Irfc
+
+** bugs inherited from rfcview
+see 'rfcview problems' below
+ 
+** DONE buffer name is not rfcxxxx.txt
+if irfc-buffer-name-includes-title is t (default)
+
+rfcinfo commands do not recognize the buffer holds an rfc
+
+** installation via (setq irfc-assoc-mode t) does not work
+
+** should provide a mode hook
+
 * bugs
+** TODO first use
+loading file
+condition-case: Can't load from `rfcinfo-dbfile'
+
+if simply doing import:
+Importing RFC info from XML file.  This may take some time...
+let: Symbol's value as variable is void: rfcinfo-xml-mdtm
+
+=> call rfcinfo-init from load error
+
+** TODO Invalid face reference: nil [30 times]
+lots of
 ** TODO BCP
 doc and code assumes a BCP maps to only one
 false: eg bcp41
+rfc2914 updated by rfc7141
+
 then, what title to use?
 
 ** DONE errata
@@ -30,22 +63,8 @@ also see 'saving' item
 calls unknown function rfcinfo-status
 => FIXed to rfcinfo-show
 
-* priority
-
-clean-up non-local arg in read-docid
-
-STD3 updates STD7? check this.
-
-use menu Elisp/check documentation strings
-
-a word about erratas
-make ref (doc/integration)
-
-* using rfcinfo out of emacs
-emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> -f rfcinfo-show
-emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> --eval "(rfcinfo-do-show 1034 nil)"
-
-emacs -q --no-site-file -T rfcinfo -nbc -l Src/rfcinfo/rfcinfo.el --eval "(progn (tool-bar-mode 0) (rfcinfo-do-show \"RSVP\" nil))"
+* possibly to correct
+** DONE document how change summary is computed
 
 don't split window in this case?
 
@@ -86,7 +105,34 @@ rfcinfo-load: condition-case: Can't load from `rfcinfo-dbfile'
   + also there xml and db files ?
     redefine variables ?
 
+see irfc-open
+
 ** customization for faces
+* priority
+
+clean-up non-local arg in read-docid
+
+STD3 updates STD7? check this.
+
+use menu Elisp/check documentation strings
+
+a word about erratas
+make ref (doc/integration)
+
+* using rfcinfo out of emacs
+emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> -f rfcinfo-show
+emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> --eval "(rfcinfo-do-show 1034 nil)"
+
+emacs -q --no-site-file -T rfcinfo -nbc -l Src/rfcinfo/rfcinfo.el --eval "(progn (tool-bar-mode 0) (rfcinfo-do-show \"RSVP\" nil))"
+
+don't split window in this case?
+
+
+pb: caddr not defined!
+    loop
+=> require 'cl
+
+
 * additional features
 ** search author
 ** search in abstract
@@ -175,7 +221,7 @@ faces for tty
 same rfc2205-1
   -> probably only applies to level 1 headings
 
-** scroll useless (except if window too small)
+** DONE scroll useless (except if window too small)
 ** locs
 
 build sec with +l from point
@@ -198,38 +244,50 @@ parsing the xml file can be very long (more than 1 min) on a not so
 recent machine...
 (4 min on 1Ghz 256MB)
 
+** init code rfcinfo-load should rather be an autoload or something like that?
+
+
 * rfcview problems
+** should provide a mode hook
+** loops on rfc1321
+also irfc
 
-rfcview in debian emacs-goodies-el (but 0.12 instead of 0.13)
-
-bug rfc1035-3.4.2, 25 (SMTP) (section 3.4.2, taken as heading)
+** rfcview in debian emacs-goodies-el (but 0.12 instead of 0.13)
+** bug rfc1035-3.4.2, 25 (SMTP) (section 3.4.2, taken as heading)
+also irfc
  -> check final dot?
  -> check previous empty line?
 
-misses headings not a column 0 (eg rfc2205)
+** misses headings not a column 0 (eg rfc2205)
+also irfc
  -> allow blanks for headings at level 2 and more?
 
-misses toc in rfc2206 (no end dot in toc entries)
+** misses toc in rfc2206 (no end dot in toc entries)
 
-headings menu poorly cut when large
+** headings menu poorly cut when large
 (do it by sections/subsections?)
 
-does not detect multiple references (2205 -> [RSVP93, RFC 1633])
+** does not detect multiple references (2205 -> [RSVP93, RFC 1633])
 rfcview-use-view-mode-p -flag?
 
-in speedbar, sections are in reverse order? (rfc1035-3)
+** in speedbar, sections are in reverse order? (rfc1035-3)
   speedbar does its own heading parsing?
   or uses imenu???
 
-see shrink-window-if-larger-than-buffer?
-
-init code rfcinfo-load should rather be an autoload or something like that?
+** see shrink-window-if-larger-than-buffer?
 
 * rfcview toadds
-
-next/previous heading navigation ala outline or org-mode
+** next/previous heading navigation ala outline or org-mode
 => outline-minor-mode?
    needs setting outline-regexp
+
+** goto table of contents
+irfc does provide it (G)
+
+* RFCs with problems
+2206 - TOC contains non existant 3.1, 3.2
+
+6691 updates 2385 while it's already obsolated by 5925
 
 * done
 
