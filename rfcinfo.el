@@ -394,7 +394,10 @@ default.  LOC non-nil means include location part as well."
 	 (string-prefix-p "rfc" (buffer-name))
 	 (string= (substring (buffer-name) -4) ".txt"))
 	(list (string-to-number (substring (buffer-name) 3 -4)))
-      nil)))
+      (if (string= mode-name "Irfc")
+	  (and (string-match ".*(rfc\\(.*\\).txt)" (buffer-name))
+	       (list (string-to-number (match-string 1 (buffer-name)))))
+	nil))))
 
 
 ;;; blabla
@@ -1122,6 +1125,13 @@ File is downloaded from `rfcinfo-remote-repository'."
 ;; (if (boundp 'rfcview-mode-map)
 ;;     (rfcinfo-change-rfcview-map)
 ;;   (add-hook 'rfcview-load-hook 'rfcinfo-change-rfcview-map))
+
+(eval-after-load "irfc"
+  '(progn (define-key irfc-mode-map "O" 'rfcinfo-open)
+	  (define-key irfc-mode-map "i" 'rfcinfo-status-echo)
+	  (define-key irfc-mode-map "I" 'rfcinfo-show)
+	  (define-key irfc-mode-map "B" 'rfcinfo-bortzmeyer)))
+;	  (define-key irfc-mode-map "G" 'rfcinfo-goto)))
 
 (provide 'rfcinfo)
 
