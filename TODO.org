@@ -20,17 +20,21 @@ http://www.emacswiki.org/emacs/Irfc
 ** bugs inherited from rfcview
 see 'rfcview problems' below
  
-** DONE buffer name is not rfcxxxx.txt
-if irfc-buffer-name-includes-title is t (default)
-
-rfcinfo commands do not recognize the buffer holds an rfc
-
 ** installation via (setq irfc-assoc-mode t) does not work
 
 ** should provide a mode hook
 
 * bugs
-** TODO first use
+** DONE irfc: buffer name is not rfcxxxx.txt
+if irfc-buffer-name-includes-title is t (default)
+
+rfcinfo commands do not recognize the buffer holds an rfc
+
+** DONE irfc: next/prev link
+put point on [ or ]
+docid at point misses the docid
+
+** DONE first use
 loading file
 condition-case: Can't load from `rfcinfo-dbfile'
 
@@ -64,6 +68,7 @@ calls unknown function rfcinfo-status
 => FIXed to rfcinfo-show
 
 * possibly to correct
+** rfcinfo-set-properties -> fontify?
 ** DONE document how change summary is computed
 ** TODO newer test
 sometimes download remote xml file, after import concludes there's
@@ -118,6 +123,15 @@ Logging in as user anonymous@ftp.ripe.net...done
 Getting PWD...done
 
 * convenience
+** allow forward in history
+with C-c C-f ? (help-mode like)
+or allow to go back without undoing (emacs way?)
+
+** remember last news summary
+by saving the buffer in cache directory
++ function (binding?) to load it?
+rfcinfo-whats-new
+
 ** DONE test if remote xml file is newer
 get remote mdtm from (nth 5 (file-attributes ...))
 get old mdtm from local db file
@@ -152,7 +166,7 @@ exists
 if rfcdir does not exist, at file loading (eg from autoload)
 rfcinfo-load: condition-case: Can't load from `rfcinfo-dbfile'
 
-** create cachedir if does not exist
+** DONE create cachedir if does not exist
   tested by rfcinfo-refresh only?
   + also there xml and db files ?
     redefine variables ?
@@ -257,6 +271,9 @@ faces for tty
 ** does not update '+' (local availability status) when downloaded
 ** sets mark two times while loading?
 ** RFC download part should go in rfcview?
+is already handled by irfc
+see if it's ok and better
+
 ** clean up xml import code
 +l in ref counts visible lines in rfcview mode...
 => no?

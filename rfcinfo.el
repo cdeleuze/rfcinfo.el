@@ -81,6 +81,9 @@
 ;; loaded or available.  rfcview can be downloaded from
 ;; http://www.loveshack.ukfsn.org/emacs/rfcview.el
 ;;
+;; The same holds for irfc-mode.  irfc can be downloaded from
+;; http://www.emacswiki.org/emacs/download/irfc.el
+;;
 ;; Information about RFCs and sub-series is imported from an official
 ;; rfc-index.xml file from IETF RFC repository (configured as
 ;; `rfcinfo-remote-repository') which can be copied locally to
@@ -163,17 +166,18 @@
 The name is an ange-ftp directory.  You may have to set/customize
 ange-ftp-try-passive-mode.")
 
-(defvar rfcinfo-cache-dir "~/.cache/rfc/" "RFC local cache directory.
-This is where downloaded RFCs will be stored for later offline
-access, if `rfcinfo-cache-flag' is non nil.")
+(defvar rfcinfo-dir "~/.cache/rfc/" "RFC local cache directory.
+Directory where to store official XML file and `rfcinfo-dbfile'.
+If `rfcinfo-cache-flag' is non nil, downloaded RFCs will also be
+stored there for offline access.")
 
 (defvar rfcinfo-cache-flag t
-  "Non-nil means store a copy of each downloaded RFC in `rfcinfo-cache-dir'.")
+  "Non-nil means store a copy of each downloaded RFC in `rfcinfo-dir'.")
 
-(defvar rfcinfo-index-xml-file "~/.cache/rfc/rfc-index.xml"
+(defvar rfcinfo-index-xml-file (concat rfcinfo-dir "rfc-index.xml")
   "The local (path)name of the rfc-index.xml file.")
 
-(defvar rfcinfo-dbfile "~/.cache/rfc/rfcinfo.db"
+(defvar rfcinfo-dbfile (concat rfcinfo-dir "rfcinfo.db")
   "Pathname of the file where rfc information will be stored.")
 
 
@@ -187,6 +191,7 @@ access, if `rfcinfo-cache-flag' is non nil.")
 (defvar rfcinfo-window nil);;ZZZ
 (defconst rfcinfo-buffer "*RFC info*")
 
+(defvar rfcinfo-doing-init nil "Avoid computing summary.  Set by rfcinfo-init.")
 (defvar rfcinfo-first-done) ;; -flag ?
 
 ;;; A few general purpose functions
@@ -239,7 +244,7 @@ non nil, always ask (found docid proposed as default)."
 
 (defun rfcinfo-open (ask)
   "Open RFC and position point to section number.
-The RFC is either loaded from `rfcinfo-cache-dir' or downloaded
+The RFC is either loaded from `rfcinfo-dir' or downloaded
 from `rfcinfo-remote-repository."
   (interactive "P")
   (rfcinfo-do-open (rfcinfo-read-docid "View " ask 'non-local t)))
@@ -281,8 +286,10 @@ Sub matches:
   "\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)"
   "Regexp matching sub-series docid string.")
 
-(defconst rfcinfo-re-docid (concat "\\(\\(RFC\\|rfc\\)? ?-?\\([[:digit:]]+\\)\
-\\(-\\(" rfcinfo-re-loc "\\)\\)?\\)\\|\\(" rfcinfo-re-subseries "\\)")
+;; We allow the docid to be enclosed in [], since navigating links in
+;; rfcview-mode or irfc-mode puts point on one of those.
+(defconst rfcinfo-re-docid (concat "\\[?\\(\\(RFC\\|rfc\\)? ?-?\\([[:digit:]]+\\)\
+\\(-\\(" rfcinfo-re-loc "\\)\\)?\\)\\]?\\|\\(" rfcinfo-re-subseries "\\)")
   "Regexp matching a docid string.
 
 Sub-matches:
@@ -534,7 +541,7 @@ HEADER."
 
 (defun rfcinfo-do-open (id)
   (let* ((rfc (concat "rfc" (number-to-string (car id)) ".txt"))
-	 (localname (concat rfcinfo-cache-dir rfc)))
+	 (localname (concat rfcinfo-dir rfc)))
     (if (file-exists-p localname) (rfcinfo-view localname (cdr id))
       (message "Not in cache. Attempting Download...")
       (rfcinfo-view (concat rfcinfo-remote-repository rfc) (cdr id))
@@ -562,7 +569,7 @@ HEADER."
 
 (defun rfcinfo-cached-p (nb)
   "Does a local cached copy for RFC NB exists?"
-  (file-exists-p (concat rfcinfo-cache-dir "rfc" (number-to-string nb) ".txt")))
+  (file-exists-p (concat rfcinfo-dir "rfc" (number-to-string nb) ".txt")))
 
 
 ;;; TODO undocumented user functions
@@ -1041,31 +1048,34 @@ Return nil if none"
 	(insert (with-output-to-string (prin1 rfcinfo-status)))
 	(insert (with-output-to-string (prin1 rfcinfo-std-status))))
 
-      ;; prepare import summary
-      (let* ((diff (rfcinfo-changes old (rfcinfo-known-rfcs)))
-	     (news (car diff))
-	     (changes (cdr diff))
-	     (affected (rfcinfo-affected news))
-	     (stch (if changes (rfcinfo-changes-string changes) ""))
-	     (stnw (if news
-		       (rfcinfo-list-nbs (format "New RFCs (%i)" (length news))
-					 news) 
-		     ""))
-	     (stup (if (car affected)
-		       (rfcinfo-list-nbs (format "\n\nNewly updated RFCs (%i)"
-						 (length (car affected)))
-					 (car affected))
-		     ""))
-	     (stob (if (cdr affected)
-		       (rfcinfo-list-nbs (format "\n\nNewly obsolated RFCs (%i)"
-						 (length (cdr affected)))
-					 (cdr affected))
-		     "")))
-	
-	(if (or news changes) (progn
-				(rfcinfo-display (concat stch stnw stob stup) nil)
-				(message "Done."))
-	(message "Done.  No new or changed RFCs." ))))))
+      (if rfcinfo-doing-init
+	  (message "Imported until RFC%i." (1- max))
+
+	;; prepare import summary
+	(let* ((diff (rfcinfo-changes old (rfcinfo-known-rfcs)))
+	       (news (car diff))
+	       (changes (cdr diff))
+	       (affected (rfcinfo-affected news))
+	       (stch (if changes (rfcinfo-changes-string changes) ""))
+	       (stnw (if news
+			 (rfcinfo-list-nbs (format "New RFCs (%i)" (length news))
+					   news) 
+		       ""))
+	       (stup (if (car affected)
+			 (rfcinfo-list-nbs (format "\n\nNewly updated RFCs (%i)"
+						   (length (car affected)))
+					   (car affected))
+		       ""))
+	       (stob (if (cdr affected)
+			 (rfcinfo-list-nbs (format "\n\nNewly obsolated RFCs (%i)"
+						   (length (cdr affected)))
+					   (cdr affected))
+		       "")))
+	  
+	  (if (or news changes) (progn
+				  (rfcinfo-display (concat stch stnw stob stup) nil)
+				  (message "Done."))
+	    (message "Done.  No new or changed RFCs." )))))))
 
 (defun rfcinfo-refresh ()
   "Get mdtm for rfc-index.xml file, download and import it if it's newer.
@@ -1079,7 +1089,7 @@ File is downloaded from `rfcinfo-remote-repository'."
 	(message "Remote rfc-index.xml hasn't changed. No need to refresh.")
       (with-temp-buffer
 	(insert-file-contents (concat rfcinfo-remote-repository "rfc-index.xml"))
-	(rename-file rfcinfo-index-xml-file (concat rfcinfo-index-xml-file ".prev"))
+;	(rename-file rfcinfo-index-xml-file (concat rfcinfo-index-xml-file ".prev"))
 	(write-file rfcinfo-index-xml-file))
       (setq rfcinfo-xml-mdtm mdtm)
       (rfcinfo-import))))
@@ -1094,9 +1104,27 @@ File is downloaded from `rfcinfo-remote-repository'."
 	(message "rfcinfo: local xml-mdtm %s" rfcinfo-xml-mdtm)
 	(setq rfcinfo-status (read (current-buffer)))
 	(setq rfcinfo-std-status (read (current-buffer))))
-    (error (error "Can't load from `rfcinfo-dbfile'"))))
+    (error (rfcinfo-init))))
 
 ;;; Initializations
+
+(defun rfcinfo-init ()
+  "To be called when running rfcinfo for the first time.  Called
+from rfcinfo-load, when failing."
+  (unless (file-directory-p rfcinfo-dir)
+    (if (y-or-n-p (format "rfcinfo init: create directory %s? " rfcinfo-dir))
+	(make-directory rfcinfo-dir t)
+      (error "Well, so I can't do my work.")))
+  (if (y-or-n-p "Can't load from `rfcinfo-dbfile', should I initialize things for you? ")
+      (progn
+	(setq rfcinfo-xml-mdtm '(0 0))
+	(let ((rfcinfo-doing-init t))
+	  (rfcinfo-refresh)))
+    ;; raise error to abort running an autoloaded function
+    (error "Aborting.")))
+  
+  
+
 
 (rfcinfo-load)			       ; Load vectors in memory
 
