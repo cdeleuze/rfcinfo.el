@@ -606,6 +606,7 @@ HEADER."
     (define-key map "?"      'describe-mode)
     (define-key map " "      'rfcinfo-scroll-up)
     (define-key map [backspace] 'rfcinfo-scroll-down)
+    (define-key map "N"      'rfcinfo-last-news)
     map)
   "Keymap for `rfcinfo-mode'.
 
@@ -1074,6 +1075,7 @@ Return nil if none"
 	  
 	  (if (or news changes) (progn
 				  (rfcinfo-display (concat stch stnw stob stup) nil)
+				  (write-file (concat rfcinfo-dir ".news"))
 				  (message "Done."))
 	    (message "Done.  No new or changed RFCs." )))))))
 
@@ -1105,6 +1107,18 @@ File is downloaded from `rfcinfo-remote-repository'."
 	(setq rfcinfo-status (read (current-buffer)))
 	(setq rfcinfo-std-status (read (current-buffer))))
     (error (rfcinfo-init))))
+
+(defun rfcinfo-last-news ()
+  (interactive)
+  (let* ((file (concat rfcinfo-dir ".news"))
+	 (mdtm (nth 5 (file-attributes file)))
+	 (st
+	  (with-temp-buffer
+	    (insert-file-contents file)
+	    (rfcinfo-set-properties)
+	    (buffer-string))))
+    (rfcinfo-display st nil)
+    (message "Last news summary (at %s)." (current-time-string mdtm))))
 
 ;;; Initializations
 

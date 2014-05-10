@@ -25,6 +25,8 @@ see 'rfcview problems' below
 ** should provide a mode hook
 
 * bugs
+** rfcinfo-show with empty string
+or single letter...
 ** DONE irfc: buffer name is not rfcxxxx.txt
 if irfc-buffer-name-includes-title is t (default)
 
@@ -68,6 +70,10 @@ calls unknown function rfcinfo-status
 => FIXed to rfcinfo-show
 
 * possibly to correct
+** searching *word* in title
+through regexps
+\< and \> but what syntax table?
+
 ** rfcinfo-set-properties -> fontify?
 ** DONE document how change summary is computed
 ** TODO newer test
@@ -122,8 +128,13 @@ Opening FTP connection to ftp.ripe.net...done
 Logging in as user anonymous@ftp.ripe.net...done
 Getting PWD...done
 
-* convenience
-** allow forward in history
+* ideas
+** tooltip on docids
+to show title when mouse over a docid
+as a minor-mode ?
+in irfc ?
+
+** allow going forward in history
 with C-c C-f ? (help-mode like)
 or allow to go back without undoing (emacs way?)
 
