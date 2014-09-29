@@ -773,7 +773,6 @@ orange=experimental, purple=historic.
 	      l)))
     (rfcinfo-list-nbs "List of STDs" l)))
 
-;; ZZZ sorted by rfc number
 (defun rfcinfo-list-sub (sub)
   (let* ((max (length rfcinfo-status))
 	 (l (let ((i (1- max))
@@ -781,9 +780,11 @@ orange=experimental, purple=historic.
 	   (while (> i 0)
 	     (let ((also (cadr (assoc 'is-also (aref rfcinfo-status i)))))
 	       (if (eq sub (car also))
-		   (setq l (cons i l)))
+		   ;; this list contains (rfc nb . subseries nb)
+		   (setq l (cons (cons i (cdr also)) l)))
 	       (setq i (1- i))))
-	   l)))
+	   ;; we sort on subseries nb, then remove it
+	   (mapcar 'car (sort l (lambda (a b) (< (cdr a) (cdr b))))))))
     (rfcinfo-list-nbs 
      (format "List of %s sub-series" (upcase (symbol-name sub)))
      l)))
