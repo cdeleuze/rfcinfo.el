@@ -419,6 +419,7 @@ default.  LOC non-nil means include location part as well."
 (defun rfcinfo-do-show (id echo)
   ""
   (when id
+    (setq rfcinfo-current (if (and (listp id) (numberp (car id))) (car id) nil))
     (rfcinfo-display (rfcinfo-get-status id) echo)))
 
 (defun rfcinfo-display (st echo)
@@ -607,6 +608,8 @@ HEADER."
     (define-key map " "      'rfcinfo-scroll-up)
     (define-key map [backspace] 'rfcinfo-scroll-down)
     (define-key map "N"      'rfcinfo-last-news)
+    (define-key map "+"      'rfcinfo-next-rfc)
+    (define-key map "-"      'rfcinfo-prev-rfc)
     map)
   "Keymap for `rfcinfo-mode'.
 
@@ -677,6 +680,18 @@ orange=experimental, purple=historic.
 (defun rfcinfo-status-echo (ask)
   (interactive "P")
   (rfcinfo-do-show (rfcinfo-read-docid "" ask) t))
+
+(defun rfcinfo-next-rfc ()
+  (interactive)
+  (if rfcinfo-current 
+      (rfcinfo-do-show (list (1+ rfcinfo-current)) nil)
+    (message "No current rfc")))
+
+(defun rfcinfo-prev-rfc ()
+  (interactive)
+  (if rfcinfo-current 
+      (rfcinfo-do-show (list (1- rfcinfo-current)) nil)
+    (message "No current rfc")))
 
 (defun rfcinfo-follow ()
   (interactive)
