@@ -11,6 +11,9 @@ cleaner way to define keymap?
 use with-temp-message?
 
 * bugs
+** TODO -next-section stops on BCPxxx
+because it searches for unindented lines
+
 ** TODO importing xml loops?
 can't reproduce
 

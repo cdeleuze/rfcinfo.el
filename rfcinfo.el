@@ -2,7 +2,7 @@
 ;;;                Downloading and jumping to RFC locations
 ;;;                requires 'cl
 
-;; Copyright (C) 2005-2014 Christophe Deleuze <christophe.deleuze@free.fr>
+;; Copyright (C) 2005-2015 Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
 ;; Version: 0.55 / Oct 2013
 ;; --Version: 0.54 / Jun 2013
@@ -180,6 +180,8 @@ stored there for offline access.")
 (defvar rfcinfo-dbfile (concat rfcinfo-dir "rfcinfo.db")
   "Pathname of the file where rfc information will be stored.")
 
+(defvar rfcinfo-abstracts-file (concat rfcinfo-dir "rfcinfo.abstracts")
+  "Pathname of the file containing all RFCs abstracts.")
 
 (defvar rfcinfo-errata-url-prefix
   "http://www.rfc-editor.org/errata_search.php?rfc="
@@ -611,6 +613,7 @@ HEADER."
     (define-key map " "      'rfcinfo-scroll-up)
     (define-key map [backspace] 'rfcinfo-scroll-down)
     (define-key map "N"      'rfcinfo-last-news)
+    (define-key map "a"      'rfcinfo-abstract)
     (define-key map "+"      'rfcinfo-next-rfc)
     (define-key map "-"      'rfcinfo-prev-rfc)
     map)
@@ -897,6 +900,29 @@ changes (nb l1status l2status)."
 			      (cdr (assoc 'obsoletes rfc))))) news)
     (cons upd obs)))
 
+(defun rfcinfo-import-summary (old new)
+  "Return import summary as string, or nil."
+  (let* ((diff (rfcinfo-changes old new))
+	 (news (car diff))
+	 (changes (cdr diff))
+	 (affected (rfcinfo-affected news))
+	 (stch (if changes (rfcinfo-changes-string changes) ""))
+	 (stnw (if news
+		   (rfcinfo-list-nbs (format "New RFCs (%i)" (length news))
+				     news)
+		 ""))
+	 (stup (if (car affected)
+		   (rfcinfo-list-nbs (format "\n\nNewly updated RFCs (%i)"
+					     (length (car affected)))
+				     (car affected))
+		 ""))
+	 (stob (if (cdr affected)
+		   (rfcinfo-list-nbs (format "\n\nNewly obsolated RFCs (%i)"
+					     (length (cdr affected)))
+				     (cdr affected))
+		 "")))
+    (if (or news changes) (concat stch stnw stob stup))))
+
 ;; return list of elements with given tag
 (defun rfcinfo-filter-tag (tag l)
   (rfcinfo-filter (lambda (e) (eq (car-safe e) tag)) l))
@@ -1014,21 +1040,25 @@ Return nil if none"
 (defun rfcinfo-import ()
   "Import `rfcinfo-index-xml-file' into `rfcinfo-status'."
   (interactive)
-  (message "Importing RFC info from XML file.  This may take some time...")
+  (message "Importing RFC info from XML file.  This may be loooong...")
 
   (let (;; the elements we need inside an rfc-entry
 	(fields '(doc-id title author date is-also obsoletes updates
 			 obsoleted-by updated-by current-status
-			 errata-url))
+			 errata-url abstract))
 	;; replace the several author elements by one ('authors ...) list
+	;; place abstract element as car of the list, followed by number and other elements
 	(fold-authors '(lambda (el)
-			 (let ((wo-authors
+			 (let ((wo-authors-abstract
 				(nreverse (rfcinfo-foldl
-					   (lambda (acc e) (if (eq (car-safe e) 'author)
+					   (lambda (acc e) (if (or
+								(eq (car-safe e) 'author)
+								(eq (car-safe e) 'abstract))
 							       acc (cons e acc)))
 					   nil el)))
-			       (authors (mapcar 'cadr (rfcinfo-filter-tag 'author el))))
-			   (append wo-authors (list (cons 'authors authors))))))
+			       (authors (mapcar 'cadr (rfcinfo-filter-tag 'author el)))
+			       (abstract (cdar (rfcinfo-filter-tag 'abstract el))))
+			   (cons abstract (append wo-authors-abstract (list (cons 'authors authors)))))))
 
 	(content (car (xml-parse-file rfcinfo-index-xml-file))))
 
@@ -1057,12 +1087,30 @@ Return nil if none"
 	   ;; merge 'author lists in a single 'authors list
 	   (rfcs (mapcar fold-authors props))
 
-	   (max  (1+ (caar (last rfcs))))
+	   (max  (1+ (cadar (last rfcs))))
 	   (v    (make-vector max nil)))
+
+      ;; build array, add 'abstract tag, create abstracts file
       ;; loop from 'cl (TODO: change to elisp basic while?)
-      (loop for e in rfcs do
-	    (aset v (car e) (cdr e)))
+      (with-temp-file rfcinfo-abstracts-file
+	(loop for e in rfcs do
+	      ;; for debugging only
+	      ;;(insert (format "%i\n" (cadr e)))
+
+	      ;; insert the abstract in file, store text position in array
+	      (let ((p (1- (point))))
+		(if (car e) (progn ;; first paragraph
+			      (insert (caddr (caar e)))
+			      ;; some abstracts have several paragraphs
+			      ;; following paragraphs have an ugly initial white space, we remove it
+			      (mapc (lambda (e) (insert "\n\n" (substring (caddr e) 1))) (cdar e))))
+		  (aset v (cadr e) (if (car e)
+				       (cons (cons 'abstract (cons p (1- (point))))
+					     (cddr e))
+				     (cddr e))))))
+
       (setq rfcinfo-status v)
+
       ;; save info
       ;; rfcinfo-xml-mdtm should be set! (from refresh or load)
       (with-temp-file rfcinfo-dbfile
@@ -1070,34 +1118,16 @@ Return nil if none"
 	(insert (with-output-to-string (prin1 rfcinfo-status)))
 	(insert (with-output-to-string (prin1 rfcinfo-std-status))))
 
+      ;; done
       (if rfcinfo-doing-init
 	  (message "Imported until RFC%i." (1- max))
 
-	;; prepare import summary
-	(let* ((diff (rfcinfo-changes old (rfcinfo-known-rfcs)))
-	       (news (car diff))
-	       (changes (cdr diff))
-	       (affected (rfcinfo-affected news))
-	       (stch (if changes (rfcinfo-changes-string changes) ""))
-	       (stnw (if news
-			 (rfcinfo-list-nbs (format "New RFCs (%i)" (length news))
-					   news) 
-		       ""))
-	       (stup (if (car affected)
-			 (rfcinfo-list-nbs (format "\n\nNewly updated RFCs (%i)"
-						   (length (car affected)))
-					   (car affected))
-		       ""))
-	       (stob (if (cdr affected)
-			 (rfcinfo-list-nbs (format "\n\nNewly obsolated RFCs (%i)"
-						   (length (cdr affected)))
-					   (cdr affected))
-		       "")))
-	  
-	  (if (or news changes) (progn
-				  (rfcinfo-display (concat stch stnw stob stup) nil)
-				  (write-file (concat rfcinfo-dir ".news"))
-				  (message "Done."))
+	(let ((summary (rfcinfo-import-summary old (rfcinfo-known-rfcs))))
+	  (if summary
+	      (progn
+		(rfcinfo-display summary nil)
+		(write-file (concat rfcinfo-dir ".news"))
+		(message "Done."))
 	    (message "Done.  No new or changed RFCs." )))))))
 
 (defun rfcinfo-refresh (arg)
@@ -1143,6 +1173,39 @@ ARG forces download and import."
 	    (buffer-string))))
     (rfcinfo-display st nil)
     (message "Last news summary (at %s)." (current-time-string mdtm))))
+
+(defun rfcinfo-abstract (arg)
+  "Display RFC abstract, from xml file or in RFC itself if cached.
+
+If RFC is cached but has no abstract, use the one provided in xml
+file, if any.  If ARG, always display abstract from xml file."
+  (interactive "P")
+  (let ((docid (rfcinfo-read-docid "Abstract for " nil)))
+    (if (numberp (car docid))
+	(if (and (not arg) (rfcinfo-cached-p (car docid)))
+	    (condition-case nil
+		(progn
+		  (rfcinfo-do-open docid)
+		  (goto-char (point-min))
+		  (re-search-forward "^Abstract")
+		  (next-line)
+		  (recenter-top-bottom 1))
+	      (error (rfcinfo-xml-abstract (car docid) "No abstract in RFC itself. ")))
+	  (rfcinfo-xml-abstract (car docid))))
+  (message (format "Type q to go back to rfc%i info." (car docid)))))
+
+(defun rfcinfo-xml-abstract (nb &optional msg)
+  ;; go get abstract imported from xml file
+  (let ((be (cdr (assoc 'abstract (aref rfcinfo-status nb)))))
+    (if be
+	(let ((abuf (get-buffer-create (format "Abstract for RFC%i" nb))))
+	  (with-current-buffer abuf
+	    (erase-buffer)
+	    (insert-file-contents rfcinfo-abstracts-file nil (car be) (cdr be))
+	    (fill-region (point-min) (point-max)))
+	  (view-buffer abuf 'kill-buffer)
+	  (message (concat (if msg msg "") "Type 'q' to go back to *RFC info*.")))
+      (message (concat "No abstract in DB for RFC%i. " (if msg msg "")) nb))))
 
 ;;; Initializations
 
@@ -1257,3 +1320,16 @@ saved to kill ring."
       (error "Unfound section %s" sec))))
 
 ;;;
+
+
+(defun rfcinfo-set-tooltips ()
+  ""
+  (save-excursion
+    (while
+	(search-forward-regexp rfcinfo-re-docid  nil t)
+      (let ((st (match-string 0))
+	    (id (rfcinfo-docid-at-point)))
+	;; should not consider single number
+	(when (numberp (car id))
+	  (replace-match (propertize st 'help-echo (cadr (assoc 'title (aref rfcinfo-status (car id))))))
+	)))))
