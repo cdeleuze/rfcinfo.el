@@ -3,8 +3,6 @@ STD10 n'est pas barré
 
 'I' in *rfcinfo* -> close window
 
-allow going forward in history -> which key ?
-
 cleaner way to define keymap?
 (mapc (lambda (p) (define-key rfcview-mode-map (car p) (cdr p)))
       '(( "0" . rfcinfo-goto)
@@ -12,21 +10,68 @@ cleaner way to define keymap?
 
 use with-temp-message?
 
-* irfc
-
-look at irfc (possible replacement for rfcview)
-http://www.emacswiki.org/emacs/Irfc
-
-** bugs inherited from rfcview
-see 'rfcview problems' below
- 
-** installation via (setq irfc-assoc-mode t) does not work
-
-** should provide a mode hook
-
 * bugs
+** TODO importing xml loops?
+can't reproduce
+
+** TODO if cancel during import, then believes is up to date
+** TODO BCP
+doc and code assumes a BCP maps to only one rfc
+false: eg bcp41
+rfc2914 updated by rfc7141
+
+also bcp 47 (misses 5646)
+then, what title to use?
+a title is given in
+"/anonymous@ftp.ripe.net:/rfc/bcp-index.txt"
+
+list of multi-rfc bcps (as of 09/28/2014)
+bcp6, 9, 10, 13, 25, 37, 41, 47, 79, 97, 101, 111, 127, 153
+
+also allow access to info at http://www.rfc-editor.org/info/bcp47
+and other subseries /fyi12 /std35
+
+*** fix
+    -lookup-subseries, then -get-rfc-status
+         => if more than 1, use -get-std-status, generalized?
+    -get-std-status
+
+** TODO undo allowed after displaying news summary
+not ok if nothing in undo stack previously
+we undo to empty window, plus have no way to redo...
+(except 'N')
+
+** DONE failure on rfc783
+obsoletes ien 133 stored as (obsoletes nil)
+-print-docid crashes on that
+
+diagnostic
+rfcinfo-fold-docid calls rfcinfo-docid-at-point with "IEN133"
+=> returns nil
+
+** TODO letter-name sections
+rfc6585-B not recognized as part of the docid
+
+used syntax:
+rfc2205 APPENDIX A.  then A.1
+rfc4035 Appendix B.  then B.1.
+others?
+
+** TODO C-c r in rfc uses this one as arg
+it shouldn't, we use 'I' for that
+'i' and 'I' use docid at point if there's one (?)
+
+should set 'non-local in rfcinfo-show, but don't want to apply when
+called with 'I'
+
+provide another key binding?
+to another fun rfcinfo-show-other
+
+or the other way: rfcinfo-show-this-one for i/I
+=> change semantics of non-local to use-local?
+
 ** rfcinfo-show with empty string
-or single letter...
+or single letter
 ** DONE irfc: buffer name is not rfcxxxx.txt
 if irfc-buffer-name-includes-title is t (default)
 
@@ -48,13 +93,6 @@ let: Symbol's value as variable is void: rfcinfo-xml-mdtm
 
 ** TODO Invalid face reference: nil [30 times]
 lots of
-** TODO BCP
-doc and code assumes a BCP maps to only one
-false: eg bcp41
-rfc2914 updated by rfc7141
-
-then, what title to use?
-
 ** DONE errata
 on 1034: "RFC STD13 has no errata"
 on msg 'RFC xxxx has no errata' xxx has text properties
@@ -69,7 +107,77 @@ also see 'saving' item
 calls unknown function rfcinfo-status
 => FIXed to rfcinfo-show
 
+* current problems
+** import is loooong
+could fork a process to do it asynchronously?
+import, save rfcinfo-dbfile, notify main process and terminate
+main process then reloads rfcinfo-dbfile
+
+or batch import, and:
+ reload (possibly through emacsclient)
+ display result of last import ('N' is ok)
+
+
+** should not "load" 'cl?
+see cl info, section 2
+-> (eval-when-compile (require 'cl))
+
+** title search could be case sensitive
+for acronyms like HAS
+
+** TODO build-ref fails with irfc
+not a bug since build-ref not documented
+
+** does not update '+' (local availability status) when downloaded
+** sets mark two times while loading?
+** RFC download part should go in rfcview?
+is already handled by irfc
+see if it's ok and better
+
+** clean up xml import code
++l in ref counts visible lines in rfcview mode...
+=> no?
+
+** errata for unknown, browser displays whole list of errata
+** errata should read from minibuffer if not found at point
+       should use current rfc from rfcview! (or use I, e ?)
+  if no arg && rfcinfo-mode, use this one
+  if arg && rfcinfo-mode, ask
+  if no arg && no rfcinfo-mode, use point, ask if none
+  if arg && no rfcinfo-mode, use point, ask with default
+
+** rfc1035-5 currently fails (item number 5 found)
+same rfc2205-1
+  -> probably only applies to level 1 headings
+
+** DONE scroll useless (except if window too small)
+** locs
+
+build sec with +l from point
+  -> based on rfcview headings
+
+locs, use rfcview header detection
+;;
+1. correct them to not miss any (nor catch other things)
+2. allow absence of final dot
+3. 
+
+build-ref do not use rfcview, search for section header with re-loc
+-> re-sec, re-loc
+
+** how to handle rfcview optional dependency?
+ -> build-ref only (easily) callable from rfcview-mode
+
+** performance
+parsing the xml file can be very long (more than 1 min) on a not so
+recent machine...
+(4 min on 1Ghz 256MB)
+
+** init code rfcinfo-load should rather be an autoload or something like that?
+
 * possibly to correct
+** include comment in db file
+** rename refresh to update
 ** searching *word* in title
 through regexps
 \< and \> but what syntax table?
@@ -128,7 +236,31 @@ Opening FTP connection to ftp.ripe.net...done
 Logging in as user anonymous@ftp.ripe.net...done
 Getting PWD...done
 
+* clean-up
+** .cache rfc files should not be writable
+** scroll bindings
+space and S-space to scroll
+. go to beginning
+
+** rfcinfo-import
+is really ugly!
+is way too long.
+need to rewrite/split it
+
+** rfcinfo-viewfile
+is it different than rfcinfo-display?
+=> only applies to rfcs?
+
 * ideas
+** rfcinfo links, possibly use org-mode links (see notes.org)
+or at least, use same binding \C-cl
+
+** 'I' to close show window (convenient when opened from rfc buffer)
+** DONE +/- for next/previous rfc
++ make rfcinfo-current buffer-local?
+
+** word at point as title search suggestion
+** search for near point docid
 ** tooltip on docids
 to show title when mouse over a docid
 as a minor-mode ?
@@ -138,10 +270,10 @@ in irfc ?
 with C-c C-f ? (help-mode like)
 or allow to go back without undoing (emacs way?)
 
-** remember last news summary
+** DONE remember last news summary
 by saving the buffer in cache directory
 + function (binding?) to load it?
-rfcinfo-whats-new
+=> rfcinfo-last-news
 
 ** DONE test if remote xml file is newer
 get remote mdtm from (nth 5 (file-attributes ...))
@@ -155,6 +287,8 @@ refresh: get remote mdtm if equal abort
 mdtm is a list of two 16 bit integers
 
 ** batch refresh
+emacs -Q --batch -l ~/.emacs.ftp -l ~/Src/rfcinfo/rfcinfo.el -f rfcinfo-refresh
+
 ** striked 8/0
 not well readable, see eg rfc2481
 
@@ -185,38 +319,50 @@ rfcinfo-load: condition-case: Can't load from `rfcinfo-dbfile'
 see irfc-open
 
 ** customization for faces
+** delete unused rfc from cache dir
 * priority
 
-clean-up non-local arg in read-docid
-
-STD3 updates STD7? check this.
-
-use menu Elisp/check documentation strings
-
-a word about erratas
-make ref (doc/integration)
-
-* using rfcinfo out of emacs
-emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> -f rfcinfo-show
-emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> --eval "(rfcinfo-do-show 1034 nil)"
-
-emacs -q --no-site-file -T rfcinfo -nbc -l Src/rfcinfo/rfcinfo.el --eval "(progn (tool-bar-mode 0) (rfcinfo-do-show \"RSVP\" nil))"
-
-don't split window in this case?
-
-
-pb: caddr not defined!
-    loop
-=> require 'cl
-
+** clean-up non-local arg in read-docid
+** STD3 updates STD7? check this.
+** use menu Elisp/check documentation strings
+** a word about erratas
+** make ref (doc/integration)
 
 * additional features
+** allow going forward in history
+which key ?
+
 ** search author
 ** search in abstract
+could be occur in abstracts file, but need to put each one on a
+separate line (would be nicer anyway?)
+
 ** show abstract
-    -> what exactly does abstract element contain in xml index?
-       document abstract if one exists + [STANDARDS-TRACK] if applicable
-no abstract: rfc1034 ...xml file provides one...
+putting abstracts in rfcinfo-status bloats it a bit:
+28/06/14 rfcinfo.db w/o: 1124729, w/: 3968939 (* 3.5)
+
+therefore we store abstracts in a text file and only store for each
+rfc the begin and end offset of its abstract in the text file.
+
+*** if rfc is cached, use its very abstract?
+eg narrow to region on RFC text
+
+*** xml abstracts
+what exactly does abstract element contain in xml index?
+
+some rfcs have no abstract, xml file provides one...
+some have incomplete abstracts: 1662,1717 ...
+
+typos: 7231, 7234 \%
+9 September 2003 -- rfc-index.html Available
+
+http://www.rfc-editor.org/news-archive.html
+    The RFC Editor web site now contains an XML version of the
+    complete RFC index file. This file, rfc-index.xml, is updated
+    daily to match the venerable textual index file,
+    rfc-index.txt. The corresponding XML schema is rfc-index.xsd. All
+    three files are available on the RFC Database page of the RFC
+    Editor web site.
 
 ** show keywords
 xml file has some
@@ -250,7 +396,7 @@ edit list (add/remove/change order)
 
 ** multiple buffer
 currently only one possible
-usage of several?
+usefullness of several?
 
 ** saving buffer
 
@@ -262,10 +408,12 @@ save
 load (propose completion)
 forget?
 
+** provide menu
+with easy-menu
+
 ** others
 
 sb-rfcview.el ?
-provide a menu ?
 also use w3m to download?
 unfold/fold updby/obsoby trees
 ?n show next rfc...
@@ -278,54 +426,44 @@ cache dir should be shared ?
 look at ffap ?
 faces for tty
 
-* current problems
-** does not update '+' (local availability status) when downloaded
-** sets mark two times while loading?
-** RFC download part should go in rfcview?
-is already handled by irfc
-see if it's ok and better
+* using rfcinfo out of emacs
+emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> -f rfcinfo-show
+emacs -q --no-site-file -T rfcinfo -nbc -l <rfcinfo> --eval "(rfcinfo-do-show '(1034) nil)"
 
-** clean up xml import code
-+l in ref counts visible lines in rfcview mode...
-=> no?
+emacs -q --no-site-file -T rfcinfo -nbc -l Src/rfcinfo/rfcinfo.el --eval "(progn (tool-bar-mode 0) (rfcinfo-do-show \"RSVP\" nil))"
 
-** errata for unknown, browser displays whole list of errata
-** errata should read from minibuffer if not found at point
-       should use current rfc from rfcview! (or use I, e ?)
-  if no arg && rfcinfo-mode, use this one
-  if arg && rfcinfo-mode, ask
-  if no arg && no rfcinfo-mode, use point, ask if none
-  if arg && no rfcinfo-mode, use point, ask with default
+don't split window in this case?
 
-** rfc1035-5 currently fails (item number 5 found)
-same rfc2205-1
-  -> probably only applies to level 1 headings
 
-** DONE scroll useless (except if window too small)
-** locs
+pb: caddr not defined!
+    loop
+=> require 'cl
 
-build sec with +l from point
-  -> based on rfcview headings
 
-locs, use rfcview header detection
-;;
-1. correct them to not miss any (nor catch other things)
-2. allow absence of final dot
-3. 
 
-build-ref do not use rfcview, search for section header with re-loc
--> re-sec, re-loc
+* irfc
 
-** how to handle rfcview optional dependency?
- -> build-ref only (easily) callable from rfcview-mode
+irfc is a possible replacement for rfcview
+http://www.emacswiki.org/emacs/Irfc
 
-** performance
-parsing the xml file can be very long (more than 1 min) on a not so
-recent machine...
-(4 min on 1Ghz 256MB)
+** bugs inherited from rfcview
+see 'rfcview problems' below
+ 
+** installation via (setq irfc-assoc-mode t) does not work
 
-** init code rfcinfo-load should rather be an autoload or something like that?
+need to use custom-set-variables (bug in irfc.el comments)
 
+plus, need to require irfc before setting that
+
+the regexp is a bit strange (what's the initial / and final \\' ?)
+
+** should provide a mode hook
+** irfc-page-prev
+should not put point at screen middle, but rather top
+(thus, page number would appear at bottom of screen with 'standard'
+window size)
+** show page number in mode line?
+** lacks 't' to switch to text-mode
 
 * rfcview problems
 ** should provide a mode hook

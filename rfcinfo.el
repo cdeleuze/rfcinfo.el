@@ -346,7 +346,7 @@ matched text."
   "Get docid at point or prompt for it, displaying MSG.
 
 If nothing is found at point, use RFC number from buffer name,
-except if NON-LOCAL is nil, else prompt for docid.
+except if NON-LOCAL is non nil, else prompt for docid.
 ASK non-nil means prompt for docid, proposing docid at point as
 default.  LOC non-nil means include location part as well."
   (let ((def (or (rfcinfo-docid-at-point)
@@ -372,7 +372,7 @@ default.  LOC non-nil means include location part as well."
       (let ((ofs (match-string 4 s)))
 	(cons (match-string 1 s) (if ofs (string-to-number ofs))))))
 
-(defun rfcinfo-read-loc (msg ask &optional)
+(defun rfcinfo-read-loc (msg ask)
   "Get loc at point or prompt for it."
   (let ((def (rfcinfo-loc-at-point)))
     (if (or ask (not def))
@@ -544,9 +544,12 @@ HEADER."
   (let* ((rfc (concat "rfc" (number-to-string (car id)) ".txt"))
 	 (localname (concat rfcinfo-dir rfc)))
     (if (file-exists-p localname) (rfcinfo-view localname (cdr id))
-      (message "Not in cache. Attempting Download...")
-      (rfcinfo-view (concat rfcinfo-remote-repository rfc) (cdr id))
-      (if rfcinfo-cache-flag (write-file localname)))
+      (if (or (> (car id) 99)
+	      (yes-or-no-p (format "Really download rfc %i " (car id))))
+	  (progn
+	    (message "Not in cache. Attempting Download...")
+	    (rfcinfo-view (concat rfcinfo-remote-repository rfc) (cdr id))
+	    (if rfcinfo-cache-flag (write-file localname)))))
     (rfcinfo-do-show id t)))
 
 
@@ -835,7 +838,7 @@ orange=experimental, purple=historic.
 ;; import.  The summary will display lists of:
 ;;   - newly published RFCs
 ;;   - RFCs that have changed status
-;;   - RFCs that have become obsolate
+;;   - RFCs that have become obsolete
 ;;   - RFCs that have new updates
 
 (defun rfcinfo-known-rfcs ()
@@ -850,7 +853,7 @@ orange=experimental, purple=historic.
     r))
 
 (defun rfcinfo-changes (l1 l2)
-  "L1 and L2 are (nb . status) lists.  Return cons of news (L2-L1) and
+  "L1 and L2 are (nb . status) lists.  Return cons of news (ie L2-L1) and
 changes (nb l1status l2status)."
   (let ((new)
 	(changes))
@@ -925,8 +928,10 @@ changes (nb l1status l2status)."
     (cdr (assoc s string-symbol))))
 
 (defun rfcinfo-fold-docid (e)
-  (let ((id (rfcinfo-docid-at-point (caddr e))))
-    (if (numberp (car id)) (car id) id)))
+  (let ((kind (intern (downcase (substring (caddr e) 0 3))))
+	(nb (string-to-number (substring (caddr e) 3))))
+    (if (eq kind 'rfc) nb
+      (cons kind nb))))
 
 (defun rfcinfo-print-docid (id &optional loc full)
   "Print ID.  LOC: include RFC location; FULL: include RFC prefix."
@@ -1095,19 +1100,21 @@ Return nil if none"
 				  (message "Done."))
 	    (message "Done.  No new or changed RFCs." )))))))
 
-(defun rfcinfo-refresh ()
+(defun rfcinfo-refresh (arg)
   "Get mdtm for rfc-index.xml file, download and import it if it's newer.
 
-File is downloaded from `rfcinfo-remote-repository'."
-  (interactive)
+File is downloaded from `rfcinfo-remote-repository'.
+ARG forces download and import."
+  (interactive "P")
   (let* ((xml-file (concat rfcinfo-remote-repository "rfc-index.xml"))
 	 (mdtm (nth 5 (file-attributes xml-file))))
     (message "rfcinfo: remote xml-mdtm %s" mdtm)
-    (if (equal mdtm rfcinfo-xml-mdtm)
+    (if (and (null arg) (equal mdtm rfcinfo-xml-mdtm))
 	(message "Remote rfc-index.xml hasn't changed. No need to refresh.")
       (with-temp-buffer
 	(insert-file-contents (concat rfcinfo-remote-repository "rfc-index.xml"))
-;	(rename-file rfcinfo-index-xml-file (concat rfcinfo-index-xml-file ".prev"))
+	(and (file-exists-p rfcinfo-index-xml-file)
+	     (rename-file rfcinfo-index-xml-file (concat rfcinfo-index-xml-file ".prev") t))
 	(write-file rfcinfo-index-xml-file))
       (setq rfcinfo-xml-mdtm mdtm)
       (rfcinfo-import))))
@@ -1125,6 +1132,7 @@ File is downloaded from `rfcinfo-remote-repository'."
     (error (rfcinfo-init))))
 
 (defun rfcinfo-last-news ()
+  "Display last news summary."
   (interactive)
   (let* ((file (concat rfcinfo-dir ".news"))
 	 (mdtm (nth 5 (file-attributes file)))
@@ -1149,7 +1157,7 @@ from rfcinfo-load, when failing."
       (progn
 	(setq rfcinfo-xml-mdtm '(0 0))
 	(let ((rfcinfo-doing-init t))
-	  (rfcinfo-refresh)))
+	  (rfcinfo-refresh nil)))
     ;; raise error to abort running an autoloaded function
     (error "Aborting.")))
   
