@@ -403,7 +403,9 @@ default.  LOC non-nil means include location part as well."
 	 (string-prefix-p "rfc" (buffer-name))
 	 (string= (substring (buffer-name) -4) ".txt"))
 	(list (string-to-number (substring (buffer-name) 3 -4)))
-      (if (string= mode-name "Irfc")
+      ;; irfc-mode renames the buffer if irfc-buffer-name-includes-title is non nil
+      (if (and (eq major-mode 'irfc-mode)
+	       irfc-buffer-name-includes-title)
 	  (and (string-match ".*(rfc\\(.*\\).txt)" (buffer-name))
 	       (list (string-to-number (match-string 1 (buffer-name)))))
 	nil))))
@@ -555,7 +557,7 @@ HEADER."
     (rfcinfo-do-show id t)))
 
 
-;; position point to last occurence of regepx
+;; position point to last occurence of regexp
 ;; don't move if not found
 ;; we search from end of file to avoid finding the TOC entry
 
@@ -1244,23 +1246,20 @@ from rfcinfo-load, when failing."
 	  (define-key rfcview-mode-map "B" 'rfcinfo-bortzmeyer)
 	  (define-key rfcview-mode-map "G" 'rfcinfo-goto)))
 
-;; ...unless rfcview honors a rfcview-load-hook; then we can do the following:
+;; ...unless rfcview honors a rfcview-load-hook
 
-;; (defun rfcinfo-change-rfcview-map ()
-;;   (progn (define-key rfcview-mode-map "O" 'rfcinfo-open)
-;; 	    ...
-;; 	    (define-key rfcview-mode-map "G" 'rfcinfo-goto)))
+;; same thing for irfc, but it does have a mode hook
 
-;; (if (boundp 'rfcview-mode-map)
-;;     (rfcinfo-change-rfcview-map)
-;;   (add-hook 'rfcview-load-hook 'rfcinfo-change-rfcview-map))
+(defun rfcinfo-change-irfc-map ()
+  (define-key irfc-mode-map "O" 'rfcinfo-open)
+  (define-key irfc-mode-map "i" 'rfcinfo-status-echo)
+  (define-key irfc-mode-map "I" 'rfcinfo-show)
+  (define-key irfc-mode-map "B" 'rfcinfo-bortzmeyer))
+;; ;	  (define-key irfc-mode-map "G" 'rfcinfo-goto)))
 
-(eval-after-load "irfc"
-  '(progn (define-key irfc-mode-map "O" 'rfcinfo-open)
-	  (define-key irfc-mode-map "i" 'rfcinfo-status-echo)
-	  (define-key irfc-mode-map "I" 'rfcinfo-show)
-	  (define-key irfc-mode-map "B" 'rfcinfo-bortzmeyer)))
-;	  (define-key irfc-mode-map "G" 'rfcinfo-goto)))
+(if (boundp 'irfc-mode-map)
+    (rfcinfo-change-irfc-map)
+  (add-hook 'irfc-mode-hook 'rfcinfo-change-irfc-mode-map))
 
 (provide 'rfcinfo)
 
@@ -1274,20 +1273,36 @@ from rfcinfo-load, when failing."
       (substring s 0 (1- (length s)))
     s))
 
-;; ZZZ check rfcview-mode is active
+
+(defun rfcinfo--irfc-content ()
+  (let ((alist nil))
+    (maphash
+     (lambda (k v) (setq alist (cons (cons k v) alist)))
+     irfc-heading-numbers-table)
+    alist))
+
+(defun rfcinfo--rfcview-content ()
+  (reverse
+   (mapcar (lambda (e) (cons (elt (cdr e) 0) (elt (cdr e) 2)))
+	   rfcview-local-heading-alist)))
 
 (defun rfcinfo-build-ref ()
   "Build a ref for current point in current RFC.
-Uses rfcview-local-heading-alist.  ref is displayed and
+Uses content info from the major mode.  ref is displayed and
 saved to kill ring."
   (interactive)
   (let ((rfc (car-safe (rfcinfo-buffer-holds-one)))
 	(res)
 	(headers))
     (if (null rfc) (error "Not an rfc here!")
-      (setq headers (reverse rfcview-local-heading-alist))
+      (setq headers (cond
+		     ((eq major-mode 'rfcview-mode)
+		      (rfcinfo--rfcview-content))
+		     ((eq major-mode 'irfc-mode)
+		      (rfcinfo--irfc-content))
+		     (t (error "Not a known RFC major mode"))))
       (while headers
-	(let ((beg (elt (cdar headers) 2)))
+	(let ((beg (cdar headers)))
 	  (if (> beg (point))
 	      (setq headers (cdr headers))
 	    (setq res (list beg (rfcinfo-drop-final-dot (caar headers)))
