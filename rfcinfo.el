@@ -187,6 +187,8 @@ stored there for offline access.")
   "http://www.rfc-editor.org/errata_search.php?rfc="
   "Prefix of the errata URL, for RFCs that have one.")
 
+(defvar rfcinfo-async-import nil
+  "Non-nil means RFC import will be asynchronous.")
 
 ;; no defvar?
 (defvar rfcinfo-status nil "array of rfc status")
@@ -1039,10 +1041,8 @@ Return nil if none"
 	     es))))
 
 
-(defun rfcinfo-import ()
-  "Import `rfcinfo-index-xml-file' into `rfcinfo-status'."
-  (interactive)
-  (message "Importing RFC info from XML file.  This may be loooong...")
+(defun rfcinfo-do-import ()
+  "Import `rfcinfo-index-xml-file', set arrays and save files."
 
   (let (;; the elements we need inside an rfc-entry
 	(fields '(doc-id title author date is-also obsoletes updates
@@ -1062,6 +1062,7 @@ Return nil if none"
 			       (abstract (cdar (rfcinfo-filter-tag 'abstract el))))
 			   (cons abstract (append wo-authors-abstract (list (cons 'authors authors)))))))
 
+	;; *this* is long!
 	(content (car (xml-parse-file rfcinfo-index-xml-file))))
 
     ;; first import STD info
@@ -1076,8 +1077,7 @@ Return nil if none"
       (setq rfcinfo-std-status v))
   
     ;; now import RFC info
-    (let* ((old (rfcinfo-known-rfcs))
-	   ;; all rfc-entry elements
+    (let* (;; all rfc-entry elements
 	   (full (rfcinfo-filter-tag 'rfc-entry content))
 
 	   ;; filter relevant sub elements
@@ -1119,18 +1119,38 @@ Return nil if none"
 	(insert (with-output-to-string (prin1 rfcinfo-xml-mdtm)))
 	(insert (with-output-to-string (prin1 rfcinfo-status)))
 	(insert (with-output-to-string (prin1 rfcinfo-std-status))))
+      max)))
 
-      ;; done
-      (if rfcinfo-doing-init
-	  (message "Imported until RFC%i." (1- max))
+(defun rfcinfo-import ()
+  (interactive)
+  (message "Importing RFC info from XML file.  This may be loooong...")
+  (let ((old (rfcinfo-known-rfcs))
+	(max (rfcinfo-do-import)))
+    (if rfcinfo-doing-init
+	(message "Imported until RFC%i." (1- max))
+      (let ((summary (rfcinfo-import-summary old (rfcinfo-known-rfcs))))
+	(if summary
+	    (progn
+	      (rfcinfo-display summary nil)
+	      (write-file (concat rfcinfo-dir ".news"))
+	      (message "Done."))
+	  (message "Done.  No new or changed RFCs." ))))))
 
-	(let ((summary (rfcinfo-import-summary old (rfcinfo-known-rfcs))))
-	  (if summary
-	      (progn
-		(rfcinfo-display summary nil)
-		(write-file (concat rfcinfo-dir ".news"))
-		(message "Done."))
-	    (message "Done.  No new or changed RFCs." )))))))
+(defun rfcinfo-async-import ()
+  (interactive)
+  (message "Asynchronously importing RFC info from XML file.  Will tell you when done...")
+  (let ((old (rfcinfo-known-rfcs))
+	(process (start-process "rfcinfo-import" "rfcinfo-import" "emacs" "-Q" "--batch" "-l" "~/Src/rfcinfo/rfcinfo.el" "-f" "rfcinfo-do-import")))
+    (set-process-sentinel process
+       `(lambda (p e)
+	  (rfcinfo-load)
+	  (let ((summary (rfcinfo-import-summary (quote ,old) (rfcinfo-known-rfcs))))
+	     (if summary
+		 (progn
+		   (save-selected-window (rfcinfo-display summary nil)
+					 (write-file (concat rfcinfo-dir ".news")))
+		   (message "rfcinfo async import done."))
+	       (message "rfcinfo async import done.  No new or changed RFCs." )))))))
 
 (defun rfcinfo-refresh (arg)
   "Get mdtm for rfc-index.xml file, download and import it if it's newer.
@@ -1149,7 +1169,8 @@ ARG forces download and import."
 	     (rename-file rfcinfo-index-xml-file (concat rfcinfo-index-xml-file ".prev") t))
 	(write-file rfcinfo-index-xml-file))
       (setq rfcinfo-xml-mdtm mdtm)
-      (rfcinfo-import))))
+      (if rfcinfo-async-import (rfcinfo-async-import)
+	(rfcinfo-import)))))
 
 (defun rfcinfo-load ()
   (interactive)

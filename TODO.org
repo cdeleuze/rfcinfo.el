@@ -111,7 +111,11 @@ calls unknown function rfcinfo-status
 => FIXed to rfcinfo-show
 
 * current problems
-** import is loooong
+** DONE import is loooong
+parsing the xml file can be very long (more than 1 min) on a not so
+recent machine...
+(4 min on 1Ghz 256MB)
+
 could fork a process to do it asynchronously?
 import, save rfcinfo-dbfile, notify main process and terminate
 main process then reloads rfcinfo-dbfile
@@ -120,6 +124,18 @@ or batch import, and:
  reload (possibly through emacsclient)
  display result of last import ('N' is ok)
 
+*** optimize abstract import -> no
+could also not reimport all abstract info (abstracts file size is two
+times db file size)
+
+time emacs -Q --batch -l ~/Src/rfcinfo/rfcinfo.el -f rfcinfo-import => 13.027 s
+
+without abstract
+time emacs -Q --batch -l ~/Src/rfcinfo/rfcinfo.el.~HEAD~ -f rfcinfo-import => 12.927 s
+
+** xml abstract should not include '[series]' at the end
+** DONE rfcinfo-open should not automatically download a one digit rfc number
+automatic for 3 digits or more
 
 ** should not "load" 'cl?
 see cl info, section 2
@@ -171,10 +187,6 @@ build-ref do not use rfcview, search for section header with re-loc
 ** how to handle rfcview optional dependency?
  -> build-ref only (easily) callable from rfcview-mode
 
-** performance
-parsing the xml file can be very long (more than 1 min) on a not so
-recent machine...
-(4 min on 1Ghz 256MB)
 
 ** init code rfcinfo-load should rather be an autoload or something like that?
 
