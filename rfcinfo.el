@@ -256,7 +256,7 @@ from `rfcinfo-remote-repository."
 (defun rfcinfo-goto (ask)
   "Goto given section number in current RFC."
   (interactive "P")
-  (rfcinfo-do-goto (rfcinfo-read-loc "" ask)))
+  (rfcinfo-goto-loc (rfcinfo-read-loc "" ask)))
 
 ;;; Reading and printing docids
 
@@ -279,7 +279,7 @@ from `rfcinfo-remote-repository."
 ;; These regexps have been built with the help of re-builder
 
 (defconst rfcinfo-re-loc
-  "\\([[:digit:]]+\\(\\.[[:digit:]]+\\)*\\)\\(\\+\\([[:digit:]]+\\)\\)?"
+  "\\([[:digit:]]+\\|A\\|B\\|C\\|D\\(\\.[[:digit:]]+\\)*\\)\\(\\+\\([[:digit:]]+\\)\\)?"
   "Regexp matching a loc string.
 
 Sub matches:
@@ -559,28 +559,88 @@ HEADER."
     (rfcinfo-do-show id t)))
 
 
-;; position point to last occurence of regexp
-;; don't move if not found
-;; we search from end of file to avoid finding the TOC entry
-
-(defun rfcinfo-do-goto (loc)
-  (let ((p (point))
-	(re (rfcinfo-re-of-loc loc)))
-    (goto-char (point-max))
-    (if (null (search-backward-regexp re nil t))
-	(progn (goto-char p)
-	       (error "Couldn't find section %s" (car loc)))
-      (if (cdr loc) (forward-line (cdr loc)))
-      (recenter 0))))
-
 (defun rfcinfo-view (name loc)
   (view-file-other-window name)
-  (if loc (rfcinfo-do-goto loc)))
+  (if loc (rfcinfo-goto-loc loc)))
 
 (defun rfcinfo-cached-p (nb)
   "Does a local cached copy for RFC NB exists?"
   (file-exists-p (concat rfcinfo-dir "rfc" (number-to-string nb) ".txt")))
 
+
+(defun rfcinfo--normalize-header (s)
+  "Remove trailing dot and prefix word, if any.
+
+toc from irfc includes entries like 'Appendix A.' (should just be 'A')"
+  (let ((s (if (eq (aref s (1- (length s))) ?.)
+	       (substring s 0 (1- (length s)))
+	     s)))
+    (string-match "\\(.+ \\)?\\(.+\\)\\.?" s)
+    (match-string 2 s)))
+
+(defun rfcinfo--toc ()
+  "Get a table of contents: (title . offset) in reverse order."
+  (cond
+   ((eq major-mode 'rfcview-mode)
+    (reverse
+     (mapcar (lambda (e) (cons (rfcinfo--normalize-header (elt (cdr e) 0)) (elt (cdr e) 2)))
+	     (rfcinfo-filter
+	      ;; filter out 'nil text entries' (index, author's addresses)
+	      (lambda (e) (elt (cdr e) 0))
+	      rfcview-local-heading-alist))))
+   
+   ((eq major-mode 'irfc-mode)
+    (let ((alist nil))
+      (maphash
+       (lambda (k v)
+	 (setq alist (cons (cons (rfcinfo--normalize-header k) v) alist)))
+       irfc-heading-numbers-table)
+      alist))
+
+   (t (error "Not a known RFC major mode"))))
+
+;; TODO: ref/docid
+
+(defun rfcinfo-build-ref ()
+  "Build a ref for current point in current RFC.
+Uses toc info from the major mode.  ref is displayed and saved to
+kill ring."
+  (interactive)
+  (let ((rfc (car-safe (rfcinfo-buffer-holds-one)))
+	(res)
+	(toc))
+    (if (null rfc) (error "Not an rfc here!")
+      (setq toc (rfcinfo--toc))
+      (while toc
+	(let ((beg (cdar toc)))
+	  (if (> beg (point))
+	      (setq toc (cdr toc))
+	    (setq res (list beg (caar toc))
+		  toc nil))))
+      (let* ((lines (count-lines (car res) (point)))
+	     (ref (if (> lines 2)	; use lines only if big enough
+		      (format "rfc%d-%s+%d" rfc (cadr res) lines)
+		    (format "rfc%d-%s" rfc (cadr res)))))
+	(kill-new ref)
+	(message "%s (saved to kill ring)" ref)))))
+
+(defun rfcinfo-goto-loc (loc)
+  "Goto LOC, using table of contents."
+  (interactive)
+  (let ((sec (car loc))
+	(off (cdr loc))
+	(res)
+	(toc (rfcinfo--toc)))
+    (while toc
+      (let ((thissec (caar toc)))
+	(if (string= thissec sec)
+	  (setq res (cdar toc)
+		toc nil))
+	(setq toc (cdr toc))))
+    (if res (progn
+	      (goto-char res)
+	      (forward-line off))
+      (error "Unfound section %s" sec))))
 
 ;;; TODO undocumented user functions
 
@@ -1289,71 +1349,20 @@ from rfcinfo-load, when failing."
 
 ;;; ... or so
 
-(defun rfcinfo-drop-final-dot (s)
-  (if (eq (aref s (1- (length s))) ?.)
-      (substring s 0 (1- (length s)))
-    s))
+;; obsolete?
+;; position point to last occurence of regexp
+;; don't move if not found
+;; we search from end of file to avoid finding the TOC entry
 
-
-(defun rfcinfo--irfc-content ()
-  (let ((alist nil))
-    (maphash
-     (lambda (k v) (setq alist (cons (cons k v) alist)))
-     irfc-heading-numbers-table)
-    alist))
-
-(defun rfcinfo--rfcview-content ()
-  (reverse
-   (mapcar (lambda (e) (cons (elt (cdr e) 0) (elt (cdr e) 2)))
-	   rfcview-local-heading-alist)))
-
-(defun rfcinfo-build-ref ()
-  "Build a ref for current point in current RFC.
-Uses content info from the major mode.  ref is displayed and
-saved to kill ring."
-  (interactive)
-  (let ((rfc (car-safe (rfcinfo-buffer-holds-one)))
-	(res)
-	(headers))
-    (if (null rfc) (error "Not an rfc here!")
-      (setq headers (cond
-		     ((eq major-mode 'rfcview-mode)
-		      (rfcinfo--rfcview-content))
-		     ((eq major-mode 'irfc-mode)
-		      (rfcinfo--irfc-content))
-		     (t (error "Not a known RFC major mode"))))
-      (while headers
-	(let ((beg (cdar headers)))
-	  (if (> beg (point))
-	      (setq headers (cdr headers))
-	    (setq res (list beg (rfcinfo-drop-final-dot (caar headers)))
-		  headers nil))))
-      (let* ((lines (count-lines (car res) (point)))
-	     (ref (if (> lines 2)	; use lines only if big enough
-		      (format "rfc%d-%s+%d" rfc (cadr res) lines)
-		    (format "rfc%d-%s" rfc (cadr res)))))
-	(kill-new ref)
-	(message "%s (saved to kill ring)" ref)))))
-
-(defun rfcinfo-goto-ref (ref)
-  "Same as rfcinfo-do-goto, using rfcview-local-heading-alist."
-  (interactive)
-  (let ((sec (cadddr ref))
-	(res)
-	(headers))
-    (setq headers rfcview-local-heading-alist)
-    (while headers
-      (let ((thissec (caar headers)))
-	(if (not (or (string= thissec sec)
-		     ;; our sec shouldn't have a final dot,
-		     ;; thissec may well have one
-		     (string= thissec (concat sec "."))))
-	    (setq headers (cdr headers))
-	  (setq res (elt (cdar headers) 2)
-		headers nil))));(elt (cadar headers) 2))))
-    (if res
-	(goto-char res)
-      (error "Unfound section %s" sec))))
+(defun rfcinfo-do-goto (loc)
+  (let ((p (point))
+	(re (rfcinfo-re-of-loc loc)))
+    (goto-char (point-max))
+    (if (null (search-backward-regexp re nil t))
+	(progn (goto-char p)
+	       (error "Couldn't find section %s" (car loc)))
+      (if (cdr loc) (forward-line (cdr loc)))
+      (recenter 0))))
 
 ;;;
 
