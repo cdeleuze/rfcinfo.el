@@ -430,6 +430,8 @@ default.  LOC non-nil means include location part as well."
 
 (defun rfcinfo-display (st echo)
   ""
+  (unless (get-buffer rfcinfo-buffer)
+    (setq rfcinfo-first-done nil))
   (get-buffer-create rfcinfo-buffer)
   (if echo (message (rfcinfo-string-n-lines 3 st))
     (if (window-live-p rfcinfo-window) ()
@@ -1192,7 +1194,7 @@ Return nil if none"
 	(if summary
 	    (progn
 	      (rfcinfo-display summary nil)
-	      (write-file (concat rfcinfo-dir ".news"))
+	      (write-region nil nil (concat rfcinfo-dir ".news"))
 	      (message "Done."))
 	  (message "Done.  No new or changed RFCs." ))))))
 
