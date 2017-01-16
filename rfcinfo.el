@@ -71,17 +71,19 @@
 ;; 4.1.2 and a point 42 lines below the header of section 4.1.2.
 ;;
 ;; A docid string for an RFC (not a sub-series) can also contain a
-;; loc, separated from the main part with a dash '-'.
+;; loc string, separated from the main part with a dash '-'.
 ;;
 ;; Examples: "RFC1034-4.1.2", "1034-4.1.2", "RFC-1034-4.1.2+42"
 ;;
-;; If rfcview-mode is used to view RFCs, a few keys are also added to
-;; rfcview-mode-map so that rfcinfo functions can easily be called
-;; from rfcview-mode.  However, rfcinfo does not require rfcview to be
-;; loaded or available.  rfcview can be downloaded from
+;; If rfcview-mode or irfc-mode is used to view RFCs, a few keys are
+;; also added to their key map so that rfcinfo functions can easily be
+;; called from the buffer displaying the RFC.  However, rfcinfo does
+;; not require these modes to be loaded or available.
+
+;; rfcview can be downloaded from
 ;; http://www.loveshack.ukfsn.org/emacs/rfcview.el
 ;;
-;; The same holds for irfc-mode.  irfc can be downloaded from
+;; irfc can be downloaded from
 ;; http://www.emacswiki.org/emacs/download/irfc.el
 ;;
 ;; Information about RFCs and sub-series is imported from an official
@@ -90,18 +92,11 @@
 ;; `rfcinfo-index-xml-file'.  This can be done manually or with
 ;; function `rfcinfo-refresh'.  The information is imported into Lisp
 ;; vectors that are then used to answer information queries.  Since
-;; the import is a bit long (typically a few seconds) the vectors are
-;; saved as `rfcinfo-dbfile'.
+;; the import can be quite long (typically much more than a few
+;; seconds) the vectors are saved as `rfcinfo-dbfile'.  Import can be
+;; asynchronous.
 
 ;;; List of provided commands
-
-;; rfcinfo-load   loads the content of rfcinfo-dbfile in memory.
-;; rfcinfo-import imports from xml file, saves to rfcinfo-dbfile and
-;;                loads it.
-;; rfcinfo-refresh downloads (fresh) xml file and imports.
-
-;; rfcinfo-refresh should be invoked regularly (probably not more that
-;; once a few weeks) to keep available information up to date.
 
 ;; rfcinfo-show
 
@@ -132,11 +127,19 @@
 ;; prefix argument is given: the possible argument at point is then
 ;; proposed as default.
 
+;; rfcinfo-refresh
+
+;;    downloads (fresh) xml file and imports.  It should be invoked
+;;    regularly to keep available information up to date.
+
+;; rfcinfo-load: loads the content of rfcinfo-dbfile in memory.
+;; rfcinfo-import: imports from xml file, saves to rfcinfo-dbfile and
+;; loads it.
+
+;;; Installation
 
 ;; Should work on all versions of (x)Emacs.
 ;; Please let me know if this is not the case.
-
-;;; Installation
 ;;
 ;; copy this file to some directory and add the following to your
 ;; .emacs file:
@@ -149,8 +152,8 @@
 ;; (autoload 'rfcinfo-open "rfcinfo" nil t)
 ;; (autoload 'rfcinfo-refresh "rfcinfo" nil t)
 ;;
-;; Create directory ~/.cache/rfc/ or change the values of the following
-;; variables.
+;; On first run, propose to create directory 'rfcinfo-dir', download
+;; and create database (see the following variables).
 
 ;;; -----
 
@@ -229,14 +232,7 @@ stored there for offline access.")
     (apply 'concat (mapcar (lambda (s) (concat s "\n")) ;
 		    (rfcinfo-take n lines)))))
 
-(defun rfcinfo-current-line ()
-  "Get the current line number (in the buffer) of point."
-  (interactive)
-  (save-excursion
-    (beginning-of-line)
-    (1+ (count-lines 1 (point)))))
-
-;;; First the user entry points
+;;; First the user main entry points
 
 (defun rfcinfo-show (ask)
   "Display RFC information.
@@ -547,6 +543,7 @@ HEADER."
     ;; error if we aref out of the array
     (args-out-of-range (error "Unknown STD number: %d" nb))))
 
+;;; Download and display RFCs
 
 (defun rfcinfo-do-open (id)
   (let* ((rfc (concat "rfc" (number-to-string (car id)) ".txt"))
@@ -569,6 +566,8 @@ HEADER."
   "Does a local cached copy for RFC NB exists?"
   (file-exists-p (concat rfcinfo-dir "rfc" (number-to-string nb) ".txt")))
 
+
+;;; Handle locations
 
 (defun rfcinfo--normalize-header (s)
   "Remove trailing dot and prefix word, if any.
@@ -767,14 +766,16 @@ orange=experimental, purple=historic.
 
 (defun rfcinfo-follow ()
   (interactive)
-  (if (> (rfcinfo-current-line) 1)
-      (rfcinfo-do-show (rfcinfo-docid-at-point) nil) ;; ZZZ should just get the number!
-    ;; if we're on the first line goto std entry if there's one
-    (let ((id (save-excursion
-		(beginning-of-line)
-		(rfcinfo-docid-at-point))))
-      (if (eq (car id) 'std) (rfcinfo-do-show id nil)
-	(message "This RFC is not part of the STD sub-series")))))
+  (if (save-excursion
+	(beginning-of-line)
+	(= 1 (point)))
+      ;; if we're on the first line goto std entry if there's one
+      (let ((id (save-excursion
+		  (beginning-of-line)
+		  (rfcinfo-docid-at-point))))
+	(if (eq (car id) 'std) (rfcinfo-do-show id nil)
+	  (message "This RFC is not part of the STD sub-series")))
+    (rfcinfo-do-show (rfcinfo-docid-at-point) nil))) ;; ZZZ should just get the number!
 
 (defun rfcinfo-viewfile ()
   (interactive)
@@ -944,6 +945,7 @@ changes (nb l1status l2status)."
 	      l2 (cdr l2)))
 
        ((< (caar l1) (caar l2))        ; should not happen!
+	(message "Oops! Something strange happened in rfcinfo-changes!")
 	(setq l1 (cdr l1)))))
     (cons (nreverse new) (nreverse changes))))
 
@@ -1176,7 +1178,7 @@ Return nil if none"
       (setq rfcinfo-status v)
 
       ;; save info
-      ;; rfcinfo-xml-mdtm should be set! (from refresh or load)
+      ;; rfcinfo-xml-mdtm should be bound! (by refresh or load)
       (with-temp-file rfcinfo-dbfile
 	(insert (with-output-to-string (prin1 rfcinfo-xml-mdtm)))
 	(insert (with-output-to-string (prin1 rfcinfo-status)))
@@ -1298,7 +1300,7 @@ file, if any.  If ARG, always display abstract from xml file."
   "To be called when running rfcinfo for the first time.  Called
 from rfcinfo-load, when failing."
   (unless (file-directory-p rfcinfo-dir)
-    (if (y-or-n-p (format "rfcinfo init: create directory %s? " rfcinfo-dir))
+    (if (y-or-n-p (format "rfcinfo-init: create directory %s? " rfcinfo-dir))
 	(make-directory rfcinfo-dir t)
       (error "Well, so I can't do my work.")))
   (if (y-or-n-p "Can't load from `rfcinfo-dbfile', should I initialize things for you? ")
@@ -1337,8 +1339,8 @@ from rfcinfo-load, when failing."
   (define-key irfc-mode-map "O" 'rfcinfo-open)
   (define-key irfc-mode-map "i" 'rfcinfo-status-echo)
   (define-key irfc-mode-map "I" 'rfcinfo-show)
-  (define-key irfc-mode-map "B" 'rfcinfo-bortzmeyer))
-;; ;	  (define-key irfc-mode-map "G" 'rfcinfo-goto)))
+  (define-key irfc-mode-map "B" 'rfcinfo-bortzmeyer)
+  (define-key irfc-mode-map "\C-cg" 'rfcinfo-goto))
 
 (if (boundp 'irfc-mode-map)
     (rfcinfo-change-irfc-map)
