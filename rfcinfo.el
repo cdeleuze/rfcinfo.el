@@ -669,6 +669,7 @@ kill ring."
     (define-key map [return] 'rfcinfo-viewfile)
     (define-key map [left]   'rfcinfo-back)
     (define-key map "q"      'rfcinfo-quit)
+    (define-key map "I"      'rfcinfo-quit) ;; so that 'I' toggles display
     ;; ZZZ bad for documentation
     (define-key map "o"      (lambda () (interactive) (rfcinfo-show t)))
     (define-key map [mouse-2] 'rfcinfo-click)
@@ -749,8 +750,12 @@ orange=experimental, purple=historic.
   (rfcinfo-prev))
 
 (defun rfcinfo-status-echo (ask)
+  "Toggle display of RFC status in echo area."
   (interactive "P")
-  (rfcinfo-do-show (rfcinfo-read-docid "" ask) t))
+  (if (eq last-command #'rfcinfo-status-echo)
+      (setq this-command nil)
+    (setq rfcinfo-status-displayed-p t)
+    (rfcinfo-do-show (rfcinfo-read-docid "" ask) t)))
 
 (defun rfcinfo-next-rfc ()
   (interactive)
