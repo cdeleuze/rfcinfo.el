@@ -554,7 +554,9 @@ HEADER."
 	  (progn
 	    (message "Not in cache. Attempting Download...")
 	    (rfcinfo-view (concat rfcinfo-remote-repository rfc) (cdr id))
-	    (if rfcinfo-cache-flag (write-file localname)))))
+	    (if rfcinfo-cache-flag (progn
+				     (write-file localname)
+				     (chmod localname #o444))))))
     (rfcinfo-do-show id t)))
 
 
