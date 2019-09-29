@@ -162,8 +162,9 @@
 
 ;; Global Variables:
 
-;; you may prefer to use /anonymous@ftp.ietf.org:/rfc/
-(defvar rfcinfo-remote-repository "/anonymous@ftp.ripe.net:/rfc/"
+;; you may prefer to use /-:anonymous@ftp.ietf.org:/rfc/
+;; before emacs 26, use /anonymous... (without the -)
+(defvar rfcinfo-remote-repository "/-:anonymous@ftp.ripe.net:/rfc/"
   "FTP repository where RFCs and index will be downloaded from.
 
 The name is an ange-ftp directory.  You may have to set/customize
