@@ -310,7 +310,7 @@ Sub-matches:
 
 Matches an RFC number of a sub-series docid string.")
 
-(defun rfcinfo-at-point (re p)
+(defun rfcinfo-match-at-pos (re p)
   "Match regexp RE at position P.
 
 Search regexp from beginning of line, check that point is in
@@ -332,7 +332,7 @@ matched text."
       (if s (and (string-match rfcinfo-re-docid s)
 		 (= 0 (match-beginning 0))
 		 (= (length s) (match-end 0)))
-	(save-excursion (rfcinfo-at-point rfcinfo-re-docid (point))))
+	(save-excursion (rfcinfo-match-at-pos rfcinfo-re-docid (point))))
       ;; found one!
       (if (match-string 1 s)
 	  ;; matched an RFC docid
@@ -369,7 +369,7 @@ default.  LOC non-nil means include location part as well."
   (if
       (if s (and (= 0 (string-match rfcinfo-re-loc s))
 		 (= (length s) (match-end 0)))
-	(save-excursion (rfcinfo-at-point rfcinfo-re-loc (point))))
+	(save-excursion (rfcinfo-match-at-pos rfcinfo-re-loc (point))))
       (let ((ofs (match-string 4 s)))
 	(cons (match-string 1 s) (if ofs (string-to-number ofs))))))
 
@@ -1284,10 +1284,10 @@ file, if any.  If ARG, always display abstract from xml file."
 		  (goto-char (point-min))
 		  (re-search-forward "^Abstract")
 		  (next-line)
-		  (recenter-top-bottom 1))
+		  (recenter-top-bottom 1)
+		  (message (format "Type 'q' to go back to rfc%i info window." (car docid))))
 	      (error (rfcinfo-xml-abstract (car docid) "No abstract in RFC itself. ")))
-	  (rfcinfo-xml-abstract (car docid))))
-  (message (format "Type q to go back to rfc%i info." (car docid)))))
+	  (rfcinfo-xml-abstract (car docid))))))
 
 (defun rfcinfo-xml-abstract (nb &optional msg)
   ;; go get abstract imported from xml file
@@ -1300,6 +1300,19 @@ file, if any.  If ARG, always display abstract from xml file."
 	    (fill-region (point-min) (point-max)))
 	  (view-buffer abuf 'kill-buffer)
 	  (message (concat (if msg msg "") "Type 'q' to go back to *RFC info*.")))
+      (message (concat "No abstract in DB for RFC%i. " (if msg msg "")) nb))))
+
+(defun rfcinfo-xml-abstract (nb &optional msg)
+  ;; go get abstract imported from xml file
+  (let ((inhibit-read-only t)
+	(be (cdr (assoc 'abstract (aref rfcinfo-status nb)))))
+    (if be
+	(progn
+	  (erase-buffer)
+	  (insert-file-contents rfcinfo-abstracts-file nil (car be) (cdr be))
+	  (fill-region (point-min) (point-max))
+	  (view-mode-enter nil (lambda (arg) (rfcinfo-back)))
+	  (message (concat (if msg msg "") "Left-arrow to go back to rfc%i info.") nb))
       (message (concat "No abstract in DB for RFC%i. " (if msg msg "")) nb))))
 
 ;;; Initializations
