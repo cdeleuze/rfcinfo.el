@@ -803,7 +803,7 @@ orange=experimental, purple=historic.
     (error (bury-buffer)))
   ;; ensure we go back to rfcview window if rfcinfo-show was called
   ;; from it
-  (select-window (get-lru-window)))
+  (select-window (get-mru-window)))
 
 (defun rfcinfo-set-properties ()
   (goto-char (point-min))
