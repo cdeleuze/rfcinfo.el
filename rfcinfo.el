@@ -2,17 +2,8 @@
 ;;;                Downloading and jumping to RFC locations
 ;;;                requires 'cl
 
-;; Copyright (C) 2005-2015 Christophe Deleuze <christophe.deleuze@free.fr>
+;; Copyright (C) 2005-2021 Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
-;; Version: 0.55 / Oct 2013
-;; --Version: 0.54 / Jun 2013
-;; --Version: 0.53 / Jun 2013
-;; --Version: 0.52 / Mar 2013
-;; --Version: 0.51 / Jan 2013
-;; --Version: 0.5 / Nov 2012
-;; --Version: 0.34 / 28 Sep 2012
-;; --Version: 0.33 / 12 Mar 2012
-;; --Version: 0.31 / xx Aug 2011
 
 ;; Last version available at https://github.com/cdeleuze/rfcinfo.el.git
 
@@ -278,7 +269,7 @@ from `rfcinfo-remote-repository."
 ;; These regexps have been built with the help of re-builder
 
 (defconst rfcinfo-re-loc
-  "\\([[:digit:]]+\\|A\\|B\\|C\\|D\\(\\.[[:digit:]]+\\)*\\)\\(\\+\\([[:digit:]]+\\)\\)?"
+  "\\(\\([[:digit:]]+\\|A\\|B\\|C\\|D\\)\\(\\.[[:digit:]]+\\)*\\)\\(\\+\\([[:digit:]]+\\)\\)?"
   "Regexp matching a loc string.
 
 Sub matches:
