@@ -301,7 +301,7 @@ Sub-matches:
   (concat "\\(\\([[:digit:]]+\\)\\|\\(" rfcinfo-re-subseries "\\)\\) -")
   "Regexp used in *rfc-info* buffer.
 
-Matches an RFC number of a sub-series docid string.")
+Matches an (RFC) number or a sub-series docid string.")
 
 (defun rfcinfo-match-at-pos (re p)
   "Match regexp RE at position P.
@@ -378,15 +378,6 @@ default.  LOC non-nil means include location part as well."
 					     sdef "): "))
 				   nil nil sdef)))
       def)))
-
-(defun rfcinfo-re-of-loc (loc)
-  "Build a regular expression matching section part of LOC."
-  (let ((string-map-st (lambda (f s) (apply 'concat (mapcar f (string-to-list s))))))
-    (concat "^ *"
-	    (funcall string-map-st
-		     (lambda (c) (if (= c ?.) "\\." (string c)))
-		     (car loc))
-	    "\\.? +")))
 
 (defun rfcinfo-buffer-holds-one ()
   "If current buffer holds an RFC return its docid."
@@ -1363,36 +1354,3 @@ from rfcinfo-load, when failing."
 (provide 'rfcinfo)
 
 ;;; rfcinfo.el ends here
-
-
-;;; ... or so
-
-;; obsolete?
-;; position point to last occurence of regexp
-;; don't move if not found
-;; we search from end of file to avoid finding the TOC entry
-
-(defun rfcinfo-do-goto (loc)
-  (let ((p (point))
-	(re (rfcinfo-re-of-loc loc)))
-    (goto-char (point-max))
-    (if (null (search-backward-regexp re nil t))
-	(progn (goto-char p)
-	       (error "Couldn't find section %s" (car loc)))
-      (if (cdr loc) (forward-line (cdr loc)))
-      (recenter 0))))
-
-;;;
-
-
-(defun rfcinfo-set-tooltips ()
-  ""
-  (save-excursion
-    (while
-	(search-forward-regexp rfcinfo-re-docid  nil t)
-      (let ((st (match-string 0))
-	    (id (rfcinfo-docid-at-point)))
-	;; should not consider single number
-	(when (numberp (car id))
-	  (replace-match (propertize st 'help-echo (cadr (assoc 'title (aref rfcinfo-status (car id))))))
-	)))))
