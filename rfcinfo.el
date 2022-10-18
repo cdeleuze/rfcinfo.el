@@ -185,7 +185,7 @@ stored there for offline access.")
   "Prefix of the errata URL, for RFCs that have one.")
 
 (defvar rfcinfo-async-import nil
-  "Non-nil means RFC import will be asynchronous.")
+  "Non-nil means DB import from xml file will be asynchronous.")
 
 ;; no defvar?
 (defvar rfcinfo-status nil "array of rfc status")
@@ -1284,19 +1284,6 @@ file, if any.  If ARG, always display abstract from xml file."
 	    (fill-region (point-min) (point-max)))
 	  (view-buffer abuf 'kill-buffer)
 	  (message (concat (if msg msg "") "Type 'q' to go back to *RFC info*.")))
-      (message (concat "No abstract in DB for RFC%i. " (if msg msg "")) nb))))
-
-(defun rfcinfo-xml-abstract (nb &optional msg)
-  ;; go get abstract imported from xml file
-  (let ((inhibit-read-only t)
-	(be (cdr (assoc 'abstract (aref rfcinfo-status nb)))))
-    (if be
-	(progn
-	  (erase-buffer)
-	  (insert-file-contents rfcinfo-abstracts-file nil (car be) (cdr be))
-	  (fill-region (point-min) (point-max))
-	  (view-mode-enter nil (lambda (arg) (rfcinfo-back)))
-	  (message (concat (if msg msg "") "Left-arrow to go back to rfc%i info.") nb))
       (message (concat "No abstract in DB for RFC%i. " (if msg msg "")) nb))))
 
 ;;; Initializations
