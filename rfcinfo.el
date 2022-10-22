@@ -1,6 +1,6 @@
 ;;; rfcinfo.el --- Displaying and browsing status information about RFCs
 ;;;                Downloading and jumping to RFC locations
-;;;                requires 'cl
+;;;                requires 'cl 'dash
 
 ;; Copyright (C) 2005-2021 Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
@@ -150,7 +150,7 @@
 
 ;;; Code:
 (require 'cl)
-
+(require 'dash)
 ;; Global Variables:
 
 ;; I get session timeouts on /-:anonymous@ftp.ietf.org:/rfc/
@@ -870,6 +870,7 @@ orange=experimental, purple=historic.
      l)))
 
 (defun rfcinfo-list-nbs (title nbs)
+  "Return list of RFCs NBs as a string to be displayed"
   (with-temp-buffer
     (insert
      (format "%s\n%s" title
@@ -1161,9 +1162,10 @@ Return nil if none"
 			      (insert (caddr (caar e)))
 			      ;; some abstracts have several paragraphs
 			      ;; following paragraphs have an ugly initial white space, we remove it
-			      (mapc (lambda (e) (insert "\n\n" (substring (caddr e) 1))) (cdar e))))
+			      (mapc (lambda (e) (insert "\n\n" (substring (caddr e) 1))) (cdar e))
+			      (insert "\n\n")))
 		  (aset v (cadr e) (if (car e)
-				       (cons (cons 'abstract (cons p (1- (point))))
+				       (cons (cons 'abstract (cons p (- (point) 3)))
 					     (cddr e))
 				     (cddr e))))))
 
@@ -1285,6 +1287,44 @@ file, if any.  If ARG, always display abstract from xml file."
 	  (view-buffer abuf 'kill-buffer)
 	  (message (concat (if msg msg "") "Type 'q' to go back to *RFC info*.")))
       (message (concat "No abstract in DB for RFC%i. " (if msg msg "")) nb))))
+
+(defun rfcinfo--next-abstract (n)
+  "Get rfc number and abstract position for first rfc having one
+after rfc number N."
+  (let ((be))
+    (while (not be)
+      (setq n (1+ n)
+	    be (cdr (assoc 'abstract (aref rfcinfo-status n)))))
+    (cons n be)))
+  
+(defun rfcinfo-search-in-abstracts (keyword)
+  "Search for keyword in abstracts"
+  (interactive "sKeyword in abstract: ")
+  (let ((buf (find-file-noselect rfcinfo-abstracts-file)))
+    (set-buffer buf)
+    ;; collect posns in rfcinfo-abstracts-file
+    (let ((posns)
+	  (rfcs nil)
+	  (i 599) ;; rfc600 is first one with abstract
+	  (abs (rfcinfo--next-abstract 599)))
+
+      ;; build list of posns, in increasing order
+      (goto-char (point-max))
+      (while (re-search-backward (concat "\\b" keyword "\\b") nil t)
+	(setq posns (cons (point) posns)))
+
+      ;; match posns to rfc numbers in rfcs
+      (dolist (p posns)
+	(while (> p (cddr abs))
+	  (setq abs (rfcinfo--next-abstract (car abs))))
+	(setq rfcs (cons (car abs) rfcs)))
+
+      ;; display result
+      (rfcinfo-display
+       (rfcinfo-list-nbs
+	(format "\"%s\" in abstract (%i)" keyword (length rfcs))
+	(-distinct (reverse rfcs)))
+       nil))))
 
 ;;; Initializations
 
