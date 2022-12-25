@@ -881,10 +881,10 @@ orange=experimental, purple=historic.
 ;;; Searching the DB
 
 (defun rfcinfo-search-any (field word)
-  (loop for i from 0 to (1- (length rfcinfo-status))
-	if (let ((fi (assq field (aref rfcinfo-status i))))
-	     (and fi (string-match word (cadr fi))))
-	collect i))
+  (cl-loop for i from 0 to (1- (length rfcinfo-status))
+	   if (let ((fi (assq field (aref rfcinfo-status i))))
+		(and fi (string-match word (cadr fi))))
+	   collect i))
 
 ;; case-fold-search
 
@@ -1129,8 +1129,8 @@ Return nil if none"
 	   (max (1+ (caar (last stds))))
 	   (v (make-vector max nil))
 	   )
-      (loop for e in stds do
-	    (aset v (car e) (cdr e)))
+      (cl-loop for e in stds do
+	       (aset v (car e) (cdr e)))
       (setq rfcinfo-std-status v))
   
     ;; now import RFC info
@@ -1152,7 +1152,7 @@ Return nil if none"
       ;; build array, add 'abstract tag, create abstracts file
       ;; loop from 'cl (TODO: change to elisp basic while?)
       (with-temp-file rfcinfo-abstracts-file
-	(loop for e in rfcs do
+	(cl-loop for e in rfcs do
 	      ;; for debugging only
 	      ;;(insert (format "%i\n" (cadr e)))
 
