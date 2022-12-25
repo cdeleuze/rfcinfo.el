@@ -2,7 +2,7 @@
 ;;;                Downloading and jumping to RFC locations
 ;;;                requires 'cl 'dash
 
-;; Copyright (C) 2005-2021 Christophe Deleuze <christophe.deleuze@free.fr>
+;; Copyright (C) 2005-2022 Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
 
 ;; Last version available at https://github.com/cdeleuze/rfcinfo.el.git
@@ -195,36 +195,13 @@ stored there for offline access.")
 (defvar rfcinfo-doing-init nil "Avoid computing summary.  Set by rfcinfo-init.")
 (defvar rfcinfo-first-done) ;; -flag ?
 
-;;; A few general purpose functions
-
-(defun rfcinfo-foldl (f e l)
-  "Constant space fold-left."
-  (let ((rest l)
-	(acc e))
-    (while (consp rest)
-      (setq acc (apply f acc (car rest) nil)
-	    rest (cdr rest)))
-    acc))
-
-(defun rfcinfo-foldl1 (f l)
-  "Constant space fold-left1."
-  (rfcinfo-foldl f (car l) (cdr l)))
-
-(defun rfcinfo-filter (p l)
-  "Constant space filter."
-  (nreverse
-   (rfcinfo-foldl (lambda (acc e) (if (funcall p e) (cons e acc) acc)) nil l)))
-
-(defun rfcinfo-take (n l)
-  "Take first N elements of list L."
-  (let ((test (lambda (e) (setq n (1- n)) (>= n 0))))
-    (rfcinfo-filter test l)))
+;;; A general purpose function
 
 (defun rfcinfo-string-n-lines (n s)
   "Take first N lines of string S."
   (let ((lines (split-string s "\n")))
     (apply 'concat (mapcar (lambda (s) (concat s "\n")) ;
-		    (rfcinfo-take n lines)))))
+		    (-take n lines)))))
 
 ;;; First the user main entry points
 
@@ -438,7 +415,7 @@ default.  LOC non-nil means include location part as well."
   "Build the string of dependencies in list L, starting with
 HEADER."
   (if (null l) ""
-    (rfcinfo-foldl (lambda (acc n)
+    (-reduce-from (lambda (acc n)
 		     (cond
 		      ((numberp n)
 		       (let* ((rfc (aref rfcinfo-status n))
@@ -500,7 +477,7 @@ HEADER."
 						      'face '(:foreground "red")
 						      'help-echo "Show errata in web browser") " ")
 				"")
-			      (rfcinfo-foldl1 (lambda (acc s) (concat acc ", " s))  authors)
+			      (-reduce (lambda (acc s) (concat acc ", " s))  authors)
 			      (rfcinfo-deps upd-by "\nupdated by")
 			      (rfcinfo-deps obs-by "\nobsoleted by")
 			      (rfcinfo-deps upd    "\nupdates")
@@ -572,7 +549,7 @@ toc from irfc includes entries like 'Appendix A.' (should just be 'A')"
    ((eq major-mode 'rfcview-mode)
     (reverse
      (mapcar (lambda (e) (cons (rfcinfo--normalize-header (elt (cdr e) 0)) (elt (cdr e) 2)))
-	     (rfcinfo-filter
+	     (-filter
 	      ;; filter out 'nil text entries' (index, author's addresses)
 	      (lambda (e) (elt (cdr e) 0))
 	      rfcview-local-heading-alist))))
@@ -986,12 +963,12 @@ changes (nb l1status l2status)."
 
 ;; return list of elements with given tag
 (defun rfcinfo-filter-tag (tag l)
-  (rfcinfo-filter (lambda (e) (eq (car-safe e) tag)) l))
+  (-filter (lambda (e) (eq (car-safe e) tag)) l))
 
 (defun rfcinfo-filter-tags (tags l)
   (mapcar
        (lambda (l) (cons (car l) (cddr l))) ;; this removes the nil attribute
-       (rfcinfo-filter (lambda (e) (member (car-safe e) tags)) l)))
+       (-filter (lambda (e) (member (car-safe e) tags)) l)))
 
 (setq rfcinfo-status-symbol
       '(("INTERNET STANDARD" . standard)
@@ -1063,7 +1040,7 @@ Return nil if none"
 			     (list (rfcinfo-month-symbol (caddar month))
 				   (string-to-number (caddar year))))))
 	)
-    (rfcinfo-filter
+    (-filter
      (lambda (e) (not (null e))) ;; empty list from non RFC dependencies
      (mapcar (lambda (el)
 	       (if (consp el) ;; ???
@@ -1109,7 +1086,7 @@ Return nil if none"
 	;; place abstract element as car of the list, followed by number and other elements
 	(fold-authors '(lambda (el)
 			 (let ((wo-authors-abstract
-				(nreverse (rfcinfo-foldl
+				(nreverse (-reduce-from
 					   (lambda (acc e) (if (or
 								(eq (car-safe e) 'author)
 								(eq (car-safe e) 'abstract))
