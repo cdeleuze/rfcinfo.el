@@ -10,7 +10,7 @@ This is an emacs package for:
 If you don't know what RFCs are, then you certainly want to stop
 reading here and read something more useful for you.
 
-### Status information
+### Getting status information
 
 Status information is extracted from IETF-provided xml file
 (downloaded through ange-ftp).
@@ -29,7 +29,7 @@ As an example, here's what's displayed for rfc2865:
 ![information for RFC2865](https://github.com/cdeleuze/rfcinfo.el/wiki/2865.png)
 
 If the RFC has an errata page (as is the case here), you can open it
-in your favorite browser.
+in your favorite browser with a single keystroke.
 
 ### Reading RFC text
 

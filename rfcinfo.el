@@ -2,7 +2,7 @@
 ;;;                Downloading and jumping to RFC locations
 ;;;                requires 'cl 'dash
 
-;; Copyright (C) 2005-2022 Christophe Deleuze <christophe.deleuze@free.fr>
+;; Copyright (C) 2005-2023 Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
 
 ;; Last version available at https://github.com/cdeleuze/rfcinfo.el.git
@@ -132,7 +132,7 @@
 ;; Should work on all versions of (x)Emacs.
 ;; Please let me know if this is not the case.
 ;;
-;; copy this file to some directory and add the following to your
+;; Copy this file to some directory and add the following to your
 ;; .emacs file:
 
 ;; (add-to-list 'load-path <the chosen directory>)
@@ -143,8 +143,8 @@
 ;; (autoload 'rfcinfo-open "rfcinfo" nil t)
 ;; (autoload 'rfcinfo-refresh "rfcinfo" nil t)
 ;;
-;; On first run, propose to create directory 'rfcinfo-dir', download
-;; and create database (see the following variables).
+;; On first run, it will propose to create directory 'rfcinfo-dir',
+;; download and create database (see the following variables).
 
 ;;; -----
 
@@ -189,11 +189,11 @@ stored there for offline access.")
 
 ;; no defvar?
 (defvar rfcinfo-status nil "array of rfc status")
-(defvar rfcinfo-window nil);;ZZZ
+(defvar rfcinfo-window nil)
 (defconst rfcinfo-buffer "*RFC info*")
 
-(defvar rfcinfo-doing-init nil "Avoid computing summary.  Set by rfcinfo-init.")
-(defvar rfcinfo-first-done) ;; -flag ?
+(defvar rfcinfo-doing-init nil
+  "Avoid computing import summary.  Set by rfcinfo-init.")
 
 ;;; A general purpose function
 
@@ -370,11 +370,7 @@ default.  LOC non-nil means include location part as well."
 	       (list (string-to-number (match-string 1 (buffer-name)))))
 	nil))))
 
-
-;;; blabla
-
-
-;; better use locally/dynamic bound echo-flag to activate echo area?
+;; TODO: better use locally/dynamic bound echo-flag to activate echo area?
 
 ;; we'll enable undo only after having written one time in the buffer,
 ;; so that undo can't take us back to an empty buffer.
@@ -616,7 +612,6 @@ kill ring."
 	 (url (concat "http://www.bortzmeyer.org/"
 		      (number-to-string (car id)) ".html")))
     (browse-url url)))
-;;    (w3m url)))
 
 ;; major mode for RFC info
 
@@ -634,7 +629,7 @@ kill ring."
     (define-key map [left]   'rfcinfo-back)
     (define-key map "q"      'rfcinfo-quit)
     (define-key map "I"      'rfcinfo-quit) ;; so that 'I' toggles display
-    ;; ZZZ bad for documentation
+    ;; TODO: this is bad for documentation
     (define-key map "o"      (lambda () (interactive) (rfcinfo-show t)))
     (define-key map [mouse-2] 'rfcinfo-click)
     (define-key map "e"      'rfcinfo-errata)
@@ -647,9 +642,7 @@ kill ring."
     (define-key map "+"      'rfcinfo-next-rfc)
     (define-key map "-"      'rfcinfo-prev-rfc)
     map)
-  "Keymap for `rfcinfo-mode'.
-
-Woo-bah!")
+  "Keymap for `rfcinfo-mode'")
 
 (define-derived-mode rfcinfo-mode nil "RFC info"
   "Major mode for navigating RFC info.
@@ -666,27 +659,27 @@ orange=experimental, purple=historic.
       (error "You shouldn't set rfcinfo-mode yourself")
     (setq buffer-read-only t)))
 
-(defun ifv (r p)
+(defun rfci--ifv (r p)
   "if with value passing."
   (if r (funcall p r)))
 
 (defun rfcinfo-prev ()
   "Move cursor to previous dependency."
   (interactive)
-  (ifv (save-excursion
-	  (backward-word)
-	  (and (search-backward-regexp rfcinfo-regexp nil t)
-	       (match-end 1)))
-	'goto-char))
+  (rfci--ifv (save-excursion
+	       (backward-word)
+	       (and (search-backward-regexp rfcinfo-regexp nil t)
+		    (match-end 1)))
+	     'goto-char))
 
 (defun rfcinfo-next ()
   "Move cursor to next dependency."
   (interactive)
-  (ifv (save-excursion
-	  (forward-word)
-	  (and (search-forward-regexp rfcinfo-regexp nil t)
-	       (match-end 1)))
-	'goto-char))
+  (rfci--ifv (save-excursion
+	       (forward-word)
+	       (and (search-forward-regexp rfcinfo-regexp nil t)
+		    (match-end 1)))
+	     'goto-char))
 
 (defun rfcinfo-prevsection ()
   (interactive)
@@ -847,7 +840,7 @@ orange=experimental, purple=historic.
      l)))
 
 (defun rfcinfo-list-nbs (title nbs)
-  "Return list of RFCs NBs as a string to be displayed"
+  "Build a string for TITLE and RFC numbers list NBS"
   (with-temp-buffer
     (insert
      (format "%s\n%s" title
@@ -920,7 +913,7 @@ changes (nb l1status l2status)."
     (cons (nreverse new) (nreverse changes))))
 
 (defun rfcinfo-changes-string (l)
-  "Return a string representing L, which contains (nb oldstatus newstatus)."
+  "Return a string representing L, whose elements are (nb oldstatus newstatus)."
   (with-temp-buffer
     (insert (format "RFCs having changed status (%i)\n\n" (length l)))
     (mapc (lambda (e) (insert (format "%6s %4d - %s -> %s\n" "" (car e) (cadr e) (caddr e)))) l)
@@ -1161,6 +1154,7 @@ Return nil if none"
   (message "Importing RFC info from XML file.  This may be loooong...")
   (let ((old (rfcinfo-known-rfcs))
 	(max (rfcinfo-do-import)))
+    ;; we don't want to compute the summary for a first time import
     (if rfcinfo-doing-init
 	(message "Imported until RFC%i." (1- max))
       (let ((summary (rfcinfo-import-summary old (rfcinfo-known-rfcs))))
@@ -1261,13 +1255,13 @@ file, if any.  If ARG, always display abstract from xml file."
 	    (erase-buffer)
 	    (insert-file-contents rfcinfo-abstracts-file nil (car be) (cdr be))
 	    (fill-region (point-min) (point-max)))
-	  (view-buffer abuf 'kill-buffer)
+	  (view-buffer-other-window abuf 'kill-buffer)
 	  (message (concat (if msg msg "") "Type 'q' to go back to *RFC info*.")))
       (message (concat "No abstract in DB for RFC%i. " (if msg msg "")) nb))))
 
 (defun rfcinfo--next-abstract (n)
-  "Get rfc number and abstract position for first rfc having one
-after rfc number N."
+  "Get rfc number and abstract position for first rfc after N that
+has one."
   (let ((be))
     (while (not be)
       (setq n (1+ n)
