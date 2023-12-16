@@ -561,11 +561,9 @@ toc from irfc includes entries like 'Appendix A.' (should just be 'A')"
 
    (t (error "Not a known RFC major mode"))))
 
-;; TODO: ref/docid
-
-(defun rfcinfo-build-ref ()
-  "Build a ref for current point in current RFC.
-Uses toc info from the major mode.  ref is displayed and saved to
+(defun rfcinfo-build-docid ()
+  "Build a docid for current point in current RFC.
+Uses toc info from the major mode.  docid is displayed and saved to
 kill ring."
   (interactive)
   (let ((rfc (car-safe (rfcinfo-buffer-holds-one)))
@@ -580,11 +578,11 @@ kill ring."
 	    (setq res (list beg (caar toc))
 		  toc nil))))
       (let* ((lines (count-lines (car res) (point)))
-	     (ref (if (> lines 2)	; use lines only if big enough
+	     (docid (if (> lines 2)	; use lines only if big enough
 		      (format "rfc%d-%s+%d" rfc (cadr res) lines)
 		    (format "rfc%d-%s" rfc (cadr res)))))
-	(kill-new ref)
-	(message "%s (saved to kill ring)" ref)))))
+	(kill-new docid)
+	(message "%s (saved to kill ring)" docid)))))
 
 (defun rfcinfo-goto-loc (loc)
   "Goto LOC, using table of contents."
@@ -1333,6 +1331,7 @@ from rfcinfo-load, when failing."
 	  (define-key rfcview-mode-map "i" 'rfcinfo-status-echo)
 	  (define-key rfcview-mode-map "I" 'rfcinfo-show)
 	  (define-key rfcview-mode-map "B" 'rfcinfo-bortzmeyer)
+	  (define-key rfcview-mode-map "D" 'rfcinfo-build-docid)
 	  (define-key rfcview-mode-map "G" 'rfcinfo-goto)))
 
 ;; ...unless rfcview honors a rfcview-load-hook
@@ -1344,6 +1343,7 @@ from rfcinfo-load, when failing."
   (define-key irfc-mode-map "i" 'rfcinfo-status-echo)
   (define-key irfc-mode-map "I" 'rfcinfo-show)
   (define-key irfc-mode-map "B" 'rfcinfo-bortzmeyer)
+  (define-key irfc-mode-map "D" 'rfcinfo-build-docid)
   (define-key irfc-mode-map "\C-cg" 'rfcinfo-goto))
 
 (if (boundp 'irfc-mode-map)
