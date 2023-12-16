@@ -297,10 +297,9 @@ matched text."
 	    (setq cont nil))))
     t))
 
-(defun rfcinfo-docid-at-point (&optional s)
-  "Get docid at point or in string S."
-  (if
-      ;; look for docid
+(defun rfcinfo--parse-docid (&optional s)
+  "Parse docid from string S, or from buffet at point."
+  (if ;; look for docid
       (if s (and (string-match rfcinfo-re-docid s)
 		 (= 0 (match-beginning 0))
 		 (= (length s) (match-end 0)))
@@ -322,7 +321,7 @@ If nothing is found at point, use RFC number from buffer name,
 except if NON-LOCAL is non nil, else prompt for docid.
 ASK non-nil means prompt for docid, proposing docid at point as
 default.  LOC non-nil means include location part as well."
-  (let ((def (or (rfcinfo-docid-at-point)
+  (let ((def (or (rfcinfo--parse-docid)
 		 (and (not non-local) (rfcinfo-buffer-holds-one)))))
     (if (or ask (not def))
 	(let ((sdef (if def (rfcinfo-print-docid def loc))))
@@ -332,7 +331,7 @@ default.  LOC non-nil means include location part as well."
 		      (concat msg "RFC number (default "
 			      sdef "): "))
 		    nil nil sdef)))
-	    (or (rfcinfo-docid-at-point s) s)))
+	    (or (rfcinfo--parse-docid s) s)))
       def)))
 
 (defun rfcinfo-loc-at-point (&optional s)
@@ -736,14 +735,14 @@ orange=experimental, purple=historic.
       ;; if we're on the first line goto std entry if there's one
       (let ((id (save-excursion
 		  (beginning-of-line)
-		  (rfcinfo-docid-at-point))))
+		  (rfcinfo--parse-docid))))
 	(if (eq (car id) 'std) (rfcinfo-do-show id nil)
 	  (message "This RFC is not part of the STD sub-series")))
-    (rfcinfo-do-show (rfcinfo-docid-at-point) nil))) ;; ZZZ should just get the number!
+    (rfcinfo-do-show (rfcinfo--parse-docid) nil)))
 
 (defun rfcinfo-viewfile ()
   (interactive)
-  (rfcinfo-do-open (list (car (rfcinfo-docid-at-point)))))
+  (rfcinfo-do-open (list (car (rfcinfo--parse-docid)))))
 
 (defun rfcinfo-back ()
   "Go back to previous RFC."
