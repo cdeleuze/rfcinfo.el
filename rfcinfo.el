@@ -153,11 +153,13 @@
 (require 'dash)
 ;; Global Variables:
 
-;; I get session timeouts on /-:anonymous@ftp.ietf.org:/rfc/
 ;; /-:anonymous@ftp.ripe.net:/rfc/ is apparently not updated since march 2020
 ;; before emacs 26, use /anonymous... (without the -:)
 
-(defvar rfcinfo-remote-repository "/-:anonymous@ftp.rfc-editor.org:/in-notes/"
+;; warning: ange-ftp does not work well with tnftp, which is now the
+;; default ftp client on debian.  Make sure to use ie inetutils-ftp.
+
+(defvar rfcinfo-remote-repository "/ftp:anonymous@ftp.rfc-editor.org:/in-notes/"
   "FTP repository where RFCs and index will be downloaded from.
 
 The name is an ange-ftp directory.  You may have to set/customize
