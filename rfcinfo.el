@@ -49,10 +49,11 @@
 ;; 2 - a number
 ;;
 ;; Those can be directly concatenated or separated by a single space
-;; or dash '-'.  The prefix is optional, defaulting to "RFC".
+;; or dash '-', or column ':'.  The prefix is optional, defaulting to
+;; "RFC".
 ;;
-;; Thus "RFC1034", "1035", "STD-3", "BCP 33", "FYI6" are docid
-;; strings.
+;; Thus "RFC1034", "1035", "STD-3", "BCP 33", "FYI6", "rfc:9293" are
+;; docid strings.
 ;;
 ;; A "loc string" is used to identify a precise point in an RFC
 ;; document.  It is made of a section number and a optional line
@@ -261,7 +262,7 @@ Sub matches:
 
 ;; We allow the docid to be enclosed in [], since navigating links in
 ;; rfcview-mode or irfc-mode puts point on one of those.
-(defconst rfcinfo-re-docid (concat "\\[?\\(\\(RFC\\|rfc\\)? ?-?\\([[:digit:]]+\\)\
+(defconst rfcinfo-re-docid (concat "\\[?\\(\\(RFC\\|rfc\\)?[- :]?\\([[:digit:]]+\\)\
 \\(-\\(" rfcinfo-re-loc "\\)\\)?\\)\\]?\\|\\(" rfcinfo-re-subseries "\\)")
   "Regexp matching a docid string.
 
