@@ -20,8 +20,8 @@ Information displayed includes:
  - title, author, date of publication
  - official status
  - links to dependency-related RFCs (with visual information about their own status)
-   - RFCs obsolated or updated by this one
-   - RFCs that obsolate or update this one
+   - RFCs obsoleted or updated by this one
+   - RFCs that obsolete or update this one
  - and more
 
 As an example, here's what's displayed for rfc2865:

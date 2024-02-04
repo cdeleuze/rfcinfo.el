@@ -1,18 +1,18 @@
-;;; rfcinfo.el --- Displaying and browsing status information about RFCs
-;;;                Downloading and jumping to RFC locations
-;;;                requires 'cl 'dash
+;;; rfcinfo.el --- Status information and navigation in RFCs -*- lexical-binding: t; -*-
+;; Copyright (C) 2005-2024 Christophe Deleuze
 
-;; Copyright (C) 2005-2023 Christophe Deleuze <christophe.deleuze@free.fr>
+;; AUthor: Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
-
-;; Last version available at https://github.com/cdeleuze/rfcinfo.el.git
+;; Version: 
+;; URL: https://github.com/cdeleuze/rfcinfo.el
+;; Package-Requires: (cl dash)
 
 ;; This file is NOT part of GNU Emacs.
 
-;; This file is free software; you can redistribute it and/or modify it
-;; under the terms of the GNU General Public License as published by the
-;; Free Software Foundation; either version 2, or (at your option) any later
-;; version.
+;; This file is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published
+;; by the Free Software Foundation; either version 3 of the License,
+;; or (at your option) any later version.
 
 ;; This file is distributed in the hope that it will be useful, but WITHOUT
 ;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -20,8 +20,7 @@
 ;; more details.
 
 ;; You should have received a copy of the GNU General Public License along
-;; with this program; if not, write to the Free Software Foundation, Inc.,
-;; 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+;; with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -29,7 +28,7 @@
 ;; Internet standards.  These are of diffent categories including
 ;; standard, informational etc.  Since once published, an RFC is never
 ;; modified, each RFC has an evolving "status" indicating it's been
-;; obsolated or updated and if so by what other RFCs.
+;; obsoleted or updated and if so by what other RFCs.
 ;;
 ;; A few "sub-series" are also defined: STDnn (nn being a number) has
 ;; a title and maps to one or a few RFCs.  BCPnn and FYInn map to a
@@ -92,36 +91,36 @@
 
 ;; rfcinfo-show
 
-;;    gets a docid (ignoring loc part if any), show title, authors,
+;;    get a docid (ignoring loc part if any), show title, authors,
 ;;    date and current status (category, list of dependencies (list of
-;;    obsoleted/updated and obsolating/updating)).  Arrow keys allow
+;;    obsoleted/updated and obsoleting/updating)).  Arrow keys allow
 ;;    to navigate through dependencies.
 
-;;    If the read string is FYI, BCP or STD display the sub-series
+;;    If the read string is FYI, BCP or STD, display the sub-series
 ;;    list.  If it's some other string, perform a string search in RFC
 ;;    titles.
 
 ;; rfcinfo-open
 
-;;    gets a RFC docid, open the RFC and position point on the given
+;;    get a RFC docid, open the RFC and position point on the given
 ;;    location.  The rfc status (category and update/obsolete stuff)
-;;    is written in the echo area.
+;;    is shown in the echo area.
 ;;
 ;;    The RFC is either read from a local cache directory or
 ;;    downloaded with ange-ftp.
 
 ;; rfcinfo-goto
 
-;;    gets a loc and move point to that location in current RFC.
+;;    get a loc and move point to that location in current RFC.
 
-;; The above three functions read their argument from the mini-buffer.
-;; If point is on a possible argument, this is directly used, unless a
-;; prefix argument is given: the possible argument at point is then
-;; proposed as default.
+;; If point is on a docid string, the above three functions use that
+;; as argument, otherwise it is read from the minibuffer.  With a
+;; prefix argument, always read from the minibuffer, proposing
+;; possible argument at point as default.
 
 ;; rfcinfo-refresh
 
-;;    downloads (fresh) xml file and imports.  It should be invoked
+;;    download (fresh) xml file and import.  This should be invoked
 ;;    regularly to keep available information up to date.
 
 ;; rfcinfo-load: loads the content of rfcinfo-dbfile in memory.
@@ -146,8 +145,6 @@
 ;;
 ;; On first run, it will propose to create directory 'rfcinfo-dir',
 ;; download and create database (see the following variables).
-
-;;; -----
 
 ;;; Code:
 (require 'cl)
@@ -241,9 +238,10 @@ from `rfcinfo-remote-repository."
 ;; location in the document.
 ;;
 ;; A loc is also a cons cell, whose car is a string denoting a section
-;; number and the (optional) cdr is a line offset after this section
-;; header.  Thus (1034 . ("4.1.1" . 42)) which can also be noted (1034 "4.1.1" . 42)
-;; denotes line 42 after section header 4.1.1 of RFC 1034.
+;; number/letter and the (optional) cdr is a line offset after this
+;; section header.  Thus (1034 . ("4.1.1" . 42)) which can also be
+;; noted (1034 "4.1.1" . 42) denotes line 42 after section header
+;; 4.1.1 of RFC 1034.
 ;;
 
 ;; These regexps have been built with the help of re-builder
@@ -253,7 +251,7 @@ from `rfcinfo-remote-repository."
   "Regexp matching a loc string.
 
 Sub matches:
- 1 - section number (not a number, by the way)
+ 1 - section number (or appendix letter)
  4 - line offset")
 
 (defconst rfcinfo-re-subseries
@@ -922,7 +920,7 @@ changes (nb l1status l2status)."
     (buffer-substring (point-min) (point-max))))
 
 (defun rfcinfo-affected (news)
-  "Compute lists of updated and obsolated from list of new RFCs."
+  "Compute lists of updated and obsoleted from list of new RFCs."
   (let (upd obs)
     (mapc (lambda (n) (let ((rfc (aref rfcinfo-status n)))
 			(mapc (lambda (n) (add-to-list 'upd n))
@@ -948,7 +946,7 @@ changes (nb l1status l2status)."
 				     (car affected))
 		 ""))
 	 (stob (if (cdr affected)
-		   (rfcinfo-list-nbs (format "\n\nNewly obsolated RFCs (%i)"
+		   (rfcinfo-list-nbs (format "\n\nNewly obsoleted RFCs (%i)"
 					     (length (cdr affected)))
 				     (cdr affected))
 		 "")))
@@ -1324,10 +1322,10 @@ from rfcinfo-load, when failing."
 ;; may not be available, second if the user just browses RFC info
 ;; without displaying RFCs, it would be useless to load it.
 
-;; Elisp reference manual (15.10) discourages use of eval-after-load
+;; Elisp reference manual (16.10) discourages use of with-eval-after-load
 ;; but I don't know how to do that without it...
 
-(eval-after-load "rfcview"
+(with-eval-after-load 'rfcview
   '(progn (define-key rfcview-mode-map "O" 'rfcinfo-open)
 	  (define-key rfcview-mode-map "i" 'rfcinfo-status-echo)
 	  (define-key rfcview-mode-map "I" 'rfcinfo-show)
