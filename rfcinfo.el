@@ -5,7 +5,7 @@
 ;; Created: Feb 2005
 ;; Version: 
 ;; URL: https://github.com/cdeleuze/rfcinfo.el
-;; Package-Requires: (cl dash)
+;; Package-Requires: (cl-lib dash)
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -147,7 +147,7 @@
 ;; download and create database (see the following variables).
 
 ;;; Code:
-(require 'cl)
+(require 'cl-lib)
 (require 'dash)
 ;; Global Variables:
 
@@ -541,7 +541,7 @@ HEADER."
 (defun rfcinfo--normalize-header (s)
   "Remove trailing dot and prefix word, if any.
 
-toc from irfc includes entries like 'Appendix A.' (should just be 'A')"
+toc from irfc includes entries like `Appendix A.' (should just be `A')"
   (let ((s (if (eq (aref s (1- (length s))) ?.)
 	       (substring s 0 (1- (length s)))
 	     s)))
@@ -718,7 +718,6 @@ orange=experimental, purple=historic.
   (interactive "P")
   (if (eq last-command #'rfcinfo-status-echo)
       (setq this-command nil)
-    (setq rfcinfo-status-displayed-p t)
     (rfcinfo-do-show (rfcinfo-read-docid "" ask) t)))
 
 (defun rfcinfo-next-rfc ()
@@ -1003,13 +1002,13 @@ changes (nb l1status l2status)."
 			  (if full "RFC" "") (number-to-string (car id))
 			  (if (and loc (cadr id)) (format "-%s" (cadr id)) "")
 			  (if (and loc (cddr id)) (format "+%i" (cddr id)) ""))
-    (concat (case (car id)
-	      ('std "STD")
-	      ('bcp "BCP")
-	      ('fyi "FYI")
-	      ('nic "NIC")
-	      ('ien "IEN")
-	      ('rtr "RTR"))
+    (concat (cl-case (car id)
+	      (std "STD")
+	      (bcp "BCP")
+	      (fyi "FYI")
+	      (nic "NIC")
+	      (ien "IEN")
+	      (rtr "RTR"))
 	    (format "%d" (cdr id)))))
 
 (defun rfcinfo-lookup-subseries (docid)
@@ -1084,7 +1083,7 @@ Return nil if none"
 			 errata-url abstract))
 	;; replace the several author elements by one ('authors ...) list
 	;; place abstract element as car of the list, followed by number and other elements
-	(fold-authors '(lambda (el)
+	(fold-authors #'(lambda (el)
 			 (let ((wo-authors-abstract
 				(nreverse (-reduce-from
 					   (lambda (acc e) (if (or
@@ -1247,7 +1246,7 @@ file, if any.  If ARG, always display abstract from xml file."
 		  (rfcinfo-do-open docid)
 		  (goto-char (point-min))
 		  (re-search-forward "^Abstract")
-		  (next-line)
+		  (forward-line)
 		  (recenter-top-bottom 1)
 		  (message (format "Type 'q' to go back to rfc%i info window." (car docid))))
 	      (error (rfcinfo-xml-abstract (car docid) "No abstract in RFC itself. ")))
@@ -1283,7 +1282,7 @@ has one."
     ;; collect posns in rfcinfo-abstracts-file
     (let ((posns)
 	  (rfcs nil)
-	  (i 599) ;; rfc600 is first one with abstract
+	  ;; rfc600 is first one with abstract
 	  (abs (rfcinfo--next-abstract 599)))
 
       ;; build list of posns, in increasing order
