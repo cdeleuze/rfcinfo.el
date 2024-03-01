@@ -223,7 +223,7 @@ from `rfcinfo-remote-repository."
 (defun rfcinfo-goto (ask)
   "Goto given section number in current RFC."
   (interactive "P")
-  (rfcinfo-goto-loc (rfcinfo-read-loc "" ask)))
+  (rfcinfo-goto-loc (rfcinfo-read-loc ask)))
 
 ;;; Reading and printing docids
 
@@ -246,13 +246,15 @@ from `rfcinfo-remote-repository."
 
 ;; These regexps have been built with the help of re-builder
 
+;; TODO: should not match TA as "A"!
 (defconst rfcinfo-re-loc
-  "\\(\\([[:digit:]]+\\|A\\|B\\|C\\|D\\)\\(\\.[[:digit:]]+\\)*\\)\\(\\+\\([[:digit:]]+\\)\\)?"
+  "\\(\\([[:digit:]]+\\|A\\|B\\|C\\|D\\|E\\|F\\)\\(\\.[[:digit:]]+\\)*\\)\\(\\+\\([[:digit:]]+\\)\\)?"
   "Regexp matching a loc string.
 
 Sub matches:
- 1 - section number (or appendix letter)
- 4 - line offset")
+ 1 - full section number (eg 1.2.3)
+ 2 - section number (or appendix letter, A-F)
+ 5 - line offset")
 
 (defconst rfcinfo-re-subseries
   "\\(STD\\|std\\|BCP\\|bcp\\|FYI\\|fyi\\) ?-?\\([[:digit:]]+\\)"
@@ -333,28 +335,35 @@ default.  LOC non-nil means include location part as well."
 	    (or (rfcinfo--parse-docid s) s)))
       def)))
 
-(defun rfcinfo-loc-at-point (&optional s)
-  "Get loc at point or in string S."
-  (interactive)
-  (if
-      (if s (and (= 0 (string-match rfcinfo-re-loc s))
-		 (= (length s) (match-end 0)))
-	(save-excursion (rfcinfo-match-at-pos rfcinfo-re-loc (point))))
-      (let ((ofs (match-string 4 s)))
-	(cons (match-string 1 s) (if ofs (string-to-number ofs))))))
+(defun rfcinfo-parse-loc (s)
+  "If S is a loc string, build cons (section-string . line-number), else nil."
+  (ignore-errors
+      (let ((case-fold-search nil)) ; appendix letters must be uppercase
+	(and (= 0 (string-match rfcinfo-re-loc s))
+	     (= (length s) (match-end 0))
+	     (let ((ofs (match-string 5 s)))
+	       (cons (match-string 1 s) (if ofs (string-to-number ofs))))))))
 
-(defun rfcinfo-read-loc (msg ask)
+(defun rfcinfo-loc-at-point ()
+  "Get loc at point."
+  (rfcinfo-parse-loc
+   (save-excursion (and (rfcinfo-match-at-pos rfcinfo-re-loc (point))
+			(match-string 0)))))
+
+(defun rfcinfo-read-loc (ask)
   "Get loc at point or prompt for it."
-  (let ((def (rfcinfo-loc-at-point)))
-    (if (or ask (not def))
-	(let ((sdef (if def (concat (car loc) (if (cdr loc) (format "+%i" (cdr loc)) "")))))
-	  ;; ZZZ should directly use def if default selected
-	  (rfcinfo-loc-at-point (read-string
-				   (if (null def) (concat msg "Location: ")
-				     (concat msg "Location (default "
-					     sdef "): "))
-				   nil nil sdef)))
-      def)))
+  (let ((loc (rfcinfo-loc-at-point)))
+    (if (or ask (not loc))
+	;; prompt
+	(let ((sloc ; as a string to be displayed in prompt
+	       (if loc (concat (car loc) (if (cdr loc) (format "+%i" (cdr loc)) "")))))
+	  ;; TODO: could directly use loc if default is selected
+	  (rfcinfo-parse-loc (read-string
+			      (if (null loc) "Location: "
+				(concat "Location (default " sloc "): "))
+			      nil nil sloc)))
+      ;; do not prompt
+      loc)))
 
 (defun rfcinfo-buffer-holds-one ()
   "If current buffer holds an RFC return its docid."
