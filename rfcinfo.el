@@ -1256,11 +1256,14 @@ file, if any.  If ARG, always display abstract from xml file."
   ;; go get abstract imported from xml file
   (let ((be (cdr (assoc 'abstract (aref rfcinfo-status nb)))))
     (if be
-	(let ((abuf (get-buffer-create (format "Abstract for RFC%i" nb))))
-	  (with-current-buffer abuf
-	    (erase-buffer)
-	    (insert-file-contents rfcinfo-abstracts-file nil (car be) (cdr be))
-	    (fill-region (point-min) (point-max)))
+	(let* ((buffer-name (format "Abstract for RFC%i" nb))
+	       (exists (get-buffer buffer-name))
+	       (abuf (or exists (get-buffer-create buffer-name))))
+	  (unless exists ;; may have been created before and still exist
+	    (with-current-buffer abuf
+	      (erase-buffer)
+	      (insert-file-contents rfcinfo-abstracts-file nil (car be) (cdr be))
+	      (fill-region (point-min) (point-max))))
 	  (view-buffer-other-window abuf 'kill-buffer)
 	  (message (concat (if msg msg "") "Type 'q' to go back to *RFC info*.")))
       (message (concat "No abstract in DB for RFC%i. " (if msg msg "")) nb))))
