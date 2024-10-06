@@ -4,7 +4,7 @@
 ;; AUthor: Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
 ;; Version:
-;; URL: https://github.com/cdeleuze/rfcinfo.el
+;; URL: https://gitlab.com/deleuzec/rfcinfo.el
 ;; Package-Requires: (cl-lib dash)
 
 ;; This file is NOT part of GNU Emacs.
