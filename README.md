@@ -1,3 +1,5 @@
+NOTE: this repo is no more updated, dev now occurs on gitlab <https://gitlab.com/deleuzec/rfcinfo.el>
+
 # rfcinfo.el
 
 ## An emacs package for RFCs
