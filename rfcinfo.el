@@ -3,7 +3,7 @@
 
 ;; AUthor: Christophe Deleuze <christophe.deleuze@free.fr>
 ;; Created: Feb 2005
-;; Version: 
+;; Version:
 ;; URL: https://github.com/cdeleuze/rfcinfo.el
 ;; Package-Requires: (cl-lib dash)
 
@@ -161,7 +161,7 @@
   "FTP repository where RFCs and index will be downloaded from.
 
 The name is an ange-ftp directory.  You may have to set/customize
-ange-ftp-try-passive-mode.")
+`ange-ftp-try-passive-mode'.")
 
 (defvar rfcinfo-dir "~/.cache/rfc/" "RFC local cache directory.
 Directory where to store official XML file and `rfcinfo-dbfile'.
@@ -188,12 +188,12 @@ stored there for offline access.")
   "Non-nil means DB import from xml file will be asynchronous.")
 
 ;; no defvar?
-(defvar rfcinfo-status nil "array of rfc status")
+(defvar rfcinfo-status nil "Array of rfc status.")
 (defvar rfcinfo-window nil)
 (defconst rfcinfo-buffer "*RFC info*")
 
 (defvar rfcinfo-doing-init nil
-  "Avoid computing import summary.  Set by rfcinfo-init.")
+  "Avoid computing import summary.  Set by `rfcinfo-init'.")
 
 ;;; A general purpose function
 
@@ -417,8 +417,7 @@ default.  LOC non-nil means include location part as well."
     (fit-window-to-buffer)))
 
 (defun rfcinfo-deps (l header)
-  "Build the string of dependencies in list L, starting with
-HEADER."
+  "Build the string of dependencies in list L, starting with HEADER."
   (if (null l) ""
     (-reduce-from (lambda (acc n)
 		     (cond
@@ -539,7 +538,7 @@ HEADER."
 ;;; Handle locations
 
 (defun rfcinfo--normalize-header (s)
-  "Remove trailing dot and prefix word, if any.
+  "Remove trailing dot and prefix word from S, if any.
 
 toc from irfc includes entries like `Appendix A.' (should just be `A')"
   (let ((s (if (eq (aref s (1- (length s))) ?.)
@@ -594,7 +593,6 @@ kill ring."
 
 (defun rfcinfo-goto-loc (loc)
   "Goto LOC, using table of contents."
-  (interactive)
   (let ((sec (car loc))
 	(off (cdr loc))
 	(res)
@@ -649,7 +647,7 @@ kill ring."
     (define-key map "+"      'rfcinfo-next-rfc)
     (define-key map "-"      'rfcinfo-prev-rfc)
     map)
-  "Keymap for `rfcinfo-mode'")
+  "Keymap for `rfcinfo-mode'.")
 
 (define-derived-mode rfcinfo-mode nil "RFC info"
   "Major mode for navigating RFC info.
@@ -722,13 +720,13 @@ orange=experimental, purple=historic.
 
 (defun rfcinfo-next-rfc ()
   (interactive)
-  (if rfcinfo-current 
+  (if rfcinfo-current
       (rfcinfo-do-show (list (1+ rfcinfo-current)) nil)
     (message "No current rfc")))
 
 (defun rfcinfo-prev-rfc ()
   (interactive)
-  (if rfcinfo-current 
+  (if rfcinfo-current
       (rfcinfo-do-show (list (1- rfcinfo-current)) nil)
     (message "No current rfc")))
 
@@ -841,12 +839,12 @@ orange=experimental, purple=historic.
 	       (setq i (1- i))))
 	   ;; we sort on subseries nb, then remove it
 	   (mapcar 'car (sort l (lambda (a b) (< (cdr a) (cdr b))))))))
-    (rfcinfo-list-nbs 
+    (rfcinfo-list-nbs
      (format "List of %s sub-series" (upcase (symbol-name sub)))
      l)))
 
 (defun rfcinfo-list-nbs (title nbs)
-  "Build a string for TITLE and RFC numbers list NBS"
+  "Build a string for TITLE and RFC numbers list NBS."
   (with-temp-buffer
     (insert
      (format "%s\n%s" title
@@ -928,7 +926,7 @@ changes (nb l1status l2status)."
     (buffer-substring (point-min) (point-max))))
 
 (defun rfcinfo-affected (news)
-  "Compute lists of updated and obsoleted from list of new RFCs."
+  "Compute lists of updated and obsoleted from list of new RFCs NEWS."
   (let (upd obs)
     (mapc (lambda (n) (let ((rfc (aref rfcinfo-status n)))
 			(mapc (lambda (n) (add-to-list 'upd n))
@@ -1314,14 +1312,14 @@ from rfcinfo-load, when failing."
   (unless (file-directory-p rfcinfo-dir)
     (if (y-or-n-p (format "rfcinfo-init: create directory %s? " rfcinfo-dir))
 	(make-directory rfcinfo-dir t)
-      (error "Well, so I can't do my work.")))
+      (error "Well, so I can't do my work")))
   (if (y-or-n-p "Can't load from `rfcinfo-dbfile', should I initialize things for you? ")
       (progn
 	(setq rfcinfo-xml-mdtm '(0 0))
 	(let ((rfcinfo-doing-init t))
 	  (rfcinfo-refresh nil)))
     ;; raise error to abort running an autoloaded function
-    (error "Aborting.")))
+    (error "Aborting")))
   
   
 

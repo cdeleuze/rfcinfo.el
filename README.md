@@ -39,7 +39,7 @@ You can download an RFC from a keystroke.  Downloaded RFCs are kept in
 a local cache for later faster or off-line reading.
 
 If `rfcview-mode` or `irfc-mode` is used to view RFCs, a few keys are
-also added to their key map so that rfcinfo functions can easily be
+also added to their keymap so that rfcinfo functions can easily be
 called from the buffer displaying the RFC.  However, rfcinfo does not
 require these modes to be loaded or available.
 
